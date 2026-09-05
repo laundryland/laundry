@@ -1,0 +1,29 @@
+name: CI & Validation for Slip Gaji PWA
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate HTML & JSON Manifest
+        run: |
+          npm install -g htmlhint jsonlint
+          htmlhint index.html
+          jsonlint -q manifest.json
+
+      - name: Build Status Notice
+        run: echo "Validasi PWA selesai tanpa eror!"
