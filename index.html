@@ -3,393 +3,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Cetak & Kasir PWA</title>
-
-    <!-- Manifest PWA -->
+    <title>Sistem Cetak & Transaksi PWA</title>
+    
+    <!-- PWA Manifest & Icons -->
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="182x182" href="icon-182x182.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512x512.png">
+    <link rel="apple-touch-icon" href="icon-512x512.png">
     <meta name="theme-color" content="#2563eb">
 
-    <!-- Icon untuk PWA & Browser (Menggunakan icon-192x192.png) -->
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="icon-192x192.png">
-
-    <!-- html2canvas untuk Fitur Export Nota ke Gambar/JPG -->
+    <!-- Library html2pdf & html2canvas untuk Cetak JPG & PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
-        /* ==================== GLOBAL STYLES ==================== */
+        /* Base Styling */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
         }
 
         body {
             background-color: #f3f4f6;
-            color: #1f2937;
+            color: #111827;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        /* Control Panel / Actions (Disembunyikan saat cetak) */
-        .action-panel {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 25px;
+        .action-buttons {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 400px;
             justify-content: center;
         }
 
         .btn {
-            padding: 10px 18px;
+            flex: 1 1 45%;
+            padding: 10px 14px;
             border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
             cursor: pointer;
-            display: inline-flex;
+            color: #fff;
+            display: flex;
             align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
+            justify-content: center;
+            gap: 6px;
+            transition: opacity 0.2s;
         }
 
-        .btn-primary { background-color: #2563eb; color: white; }
-        .btn-primary:hover { background-color: #1d4ed8; }
+        .btn:hover { opacity: 0.9; }
+        .btn-print { background-color: #2563eb; }
+        .btn-jpg { background-color: #d97706; }
+        .btn-pdf { background-color: #dc2626; }
+        .btn-wa { background-color: #16a34a; }
 
-        .btn-success { background-color: #059669; color: white; }
-        .btn-success:hover { background-color: #047857; }
-
-        .btn-wa { background-color: #25D366; color: white; }
-        .btn-wa:hover { background-color: #1da851; }
-
-        /* ==================== NOTA / STRUK CONTAINER ==================== */
-        .receipt-card {
+        /* Container Struk Thermal 58mm */
+        .receipt-container {
+            width: 58mm;
             background: #ffffff;
-            padding: 25px;
-            border-radius: 12px;
+            padding: 8px 6px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin: 0 auto;
-            width: 100%;
-            max-width: 500px; /* Lebar optimal untuk layar & hasil cetak JPG */
-        }
-
-        /* Kop Surat / Header Nota */
-        .header-kop {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
-
-        /* Logo PWA di Kop Nota */
-        .header-kop img.pwa-logo {
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-            border-radius: 8px;
-        }
-
-        .header-info {
-            flex: 1;
-        }
-
-        .header-info h2 {
-            font-size: 18px;
-            color: #111827;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .header-info p {
-            font-size: 12px;
-            color: #6b7280;
+            font-size: 10px;
             line-height: 1.3;
+            color: #000;
         }
 
-        /* Detail Transaksi */
-        .meta-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #4b5563;
-            margin-bottom: 15px;
+        /* Kop Surat dengan Logo PWA */
+        .kop-header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
         }
 
-        /* Tabel Belanja */
-        .item-table {
+        .kop-header img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            margin-bottom: 4px;
+        }
+
+        .kop-header h2 {
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .kop-header p {
+            font-size: 9px;
+            color: #333;
+        }
+
+        /* Table Details */
+        .info-table, .item-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .info-table td {
+            padding: 1px 0;
+            font-size: 9px;
+        }
+
+        .item-table th, .item-table td {
+            text-align: left;
+            padding: 3px 0;
+            font-size: 9px;
         }
 
         .item-table th {
-            text-align: left;
-            border-bottom: 1px solid #d1d5db;
-            padding: 6px 0;
-            color: #374151;
-        }
-
-        .item-table td {
-            padding: 6px 0;
-            border-bottom: 1px dashed #e5e7eb;
+            border-bottom: 1px solid #000;
+            border-top: 1px dashed #000;
         }
 
         .text-right { text-align: right; }
         .text-center { text-align: center; }
 
-        /* Total / Footer Nota */
-        .summary-section {
-            border-top: 1px solid #111827;
-            padding-top: 10px;
-            font-size: 13px;
+        .totals {
+            border-top: 1px dashed #000;
+            padding-top: 4px;
+            margin-top: 4px;
         }
 
-        .summary-row {
+        .totals .row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 4px;
+            font-size: 10px;
+            padding: 1px 0;
         }
 
-        .summary-row.grand-total {
+        .totals .bold {
             font-weight: bold;
-            font-size: 15px;
-            margin-top: 6px;
-            padding-top: 6px;
-            border-top: 1px dashed #9ca3af;
-        }
-
-        .footer-thanks {
-            text-align: center;
-            margin-top: 20px;
             font-size: 11px;
-            color: #6b7280;
         }
 
-        /* ==================== STYLES KHUSUS PRINTER THERMAL 58mm ==================== */
+        .footer {
+            text-align: center;
+            border-top: 1px dashed #000;
+            margin-top: 8px;
+            padding-top: 6px;
+            font-size: 8px;
+        }
+
+        /* CSS Khusus Cetak Printer Thermal 58mm */
         @media print {
-            body {
-                background: white !important;
-                padding: 0 !important;
-                margin: 0 !important;
+            body * {
+                visibility: hidden;
             }
-
-            .action-panel {
-                display: none !important; /* Sembunyikan Tombol Aksi */
+            .action-buttons {
+                display: none !important;
             }
-
-            .receipt-card {
-                width: 58mm !important; /* Otomatis pas untuk kertas Thermal 58mm */
-                max-width: 58mm !important;
+            .receipt-container, .receipt-container * {
+                visibility: visible;
+            }
+            .receipt-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 58mm !important;
                 padding: 2mm !important;
                 box-shadow: none !important;
-                border-radius: 0 !important;
-                font-family: 'Courier New', Courier, monospace !important;
-                color: #000 !important;
             }
-
-            .header-kop {
-                flex-direction: column;
-                text-align: center;
-                gap: 5px;
-                border-bottom: 1px dashed #000 !important;
-                padding-bottom: 8px;
-            }
-
-            .header-kop img.pwa-logo {
-                width: 40px !important;
-                height: 40px !important;
-            }
-
-            .header-info h2 {
-                font-size: 13px !important;
-            }
-
-            .header-info p {
-                font-size: 9px !important;
-            }
-
-            .meta-info {
-                flex-direction: column;
-                font-size: 9px !important;
-                border-bottom: 1px dashed #000;
-                padding-bottom: 5px;
-            }
-
-            .item-table {
-                font-size: 10px !important;
-            }
-
-            .item-table th, .item-table td {
-                border-bottom: 1px dashed #ccc !important;
-            }
-
-            .summary-section {
-                border-top: 1px dashed #000 !important;
-                font-size: 10px !important;
-            }
-
-            .footer-thanks {
-                font-size: 9px !important;
+            @page {
+                size: 58mm auto;
+                margin: 0mm;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- Panel Tombol Aksi -->
-        <div class="action-panel">
-            <button class="btn btn-primary" onclick="window.print()">
-                🖨️ Cetak Thermal (58mm)
-            </button>
-            <button class="btn btn-success" onclick="downloadJPG()">
-                🖼️ Simpan / Cetak JPG
-            </button>
-            <button class="btn btn-wa" onclick="shareWhatsApp()">
-                💬 Share ke WhatsApp
-            </button>
+    <!-- Tombol Navigasi / Aksi -->
+    <div class="action-buttons">
+        <button class="btn btn-print" onclick="window.print()">🖨️ Cetak 58mm</button>
+        <button class="btn btn-pdf" onclick="downloadPDF()">📄 Simpan PDF</button>
+        <button class="btn btn-jpg" onclick="downloadJPG()">🖼️ Simpan JPG</button>
+        <button class="btn btn-wa" onclick="shareWhatsApp()">💬 Share WA</button>
+    </div>
+
+    <!-- Area Lembar Struk / Kop Cetak Thermal 58mm -->
+    <div class="receipt-container" id="nota-cetak">
+        
+        <!-- Kop Surat dengan Logo PWA -->
+        <div class="kop-header">
+            <img src="icon-182x182.png" alt="Logo PWA">
+            <h2>TOKO PWA UTAMA</h2>
+            <p>Jl. Raya Utama No. 123, Madiun</p>
+            <p>Telp/WA: 0812-3456-7890</p>
         </div>
 
-        <!-- Area Nota / Struk Pembayaran -->
-        <div class="receipt-card" id="notaArea">
-            <!-- Kop / Header dengan Logo PWA -->
-            <div class="header-kop">
-                <img src="icon-192x192.png" alt="Logo PWA" class="pwa-logo" id="logoNota">
-                <div class="header-info">
-                    <h2>TOKO BERKAH PWA</h2>
-                    <p>Jl. Merdeka No. 45, Jakarta</p>
-                    <p>Telp/WA: 0812-3456-7890</p>
-                </div>
-            </div>
+        <!-- Detail Rincian Nota -->
+        <table class="info-table">
+            <tr>
+                <td>No. Nota</td>
+                <td>: #TRX-20260906</td>
+            </tr>
+            <tr>
+                <td>Tanggal</td>
+                <td>: 06/09/2026 09:30</td>
+            </tr>
+            <tr>
+                <td>Kasir</td>
+                <td>: Admin</td>
+            </tr>
+            <tr>
+                <td>Pelanggan</td>
+                <td>: Umum</td>
+            </tr>
+        </table>
 
-            <!-- Meta Informasi Transaksi -->
-            <div class="meta-info">
-                <div>No: #TRX-20260906</div>
-                <div>Tgl: 06/09/2026 09:30</div>
-            </div>
+        <!-- Daftar Barang -->
+        <table class="item-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th class="text-right">Qty</th>
+                    <th class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Kopi Robusta 250g</td>
+                    <td class="text-right">2</td>
+                    <td class="text-right">50.000</td>
+                </tr>
+                <tr>
+                    <td>Gula Pasir 1kg</td>
+                    <td class="text-right">1</td>
+                    <td class="text-right">15.000</td>
+                </tr>
+                <tr>
+                    <td>Susu Kental Manis</td>
+                    <td class="text-right">3</td>
+                    <td class="text-right">36.000</td>
+                </tr>
+            </tbody>
+        </table>
 
-            <!-- Tabel Barang Belanja -->
-            <table class="item-table">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th class="text-center">Qty</th>
-                        <th class="text-right">Harga</th>
-                        <th class="text-right">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Kopi Arabika 250g</td>
-                        <td class="text-center">2</td>
-                        <td class="text-right">45.000</td>
-                        <td class="text-right">90.000</td>
-                    </tr>
-                    <tr>
-                        <td>Gula Pasir 1kg</td>
-                        <td class="text-center">1</td>
-                        <td class="text-right">15.000</td>
-                        <td class="text-right">15.000</td>
-                    </tr>
-                    <tr>
-                        <td>Susu UHT 1L</td>
-                        <td class="text-center">2</td>
-                        <td class="text-right">18.000</td>
-                        <td class="text-right">36.000</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <!-- Rincian Pembayaran -->
-            <div class="summary-section">
-                <div class="summary-row">
-                    <span>Subtotal</span>
-                    <span>Rp 141.000</span>
-                </div>
-                <div class="summary-row">
-                    <span>Diskon</span>
-                    <span>Rp 0</span>
-                </div>
-                <div class="summary-row grand-total">
-                    <span>TOTAL</span>
-                    <span>Rp 141.000</span>
-                </div>
-                <div class="summary-row" style="margin-top: 5px;">
-                    <span>Bayar (Tunai)</span>
-                    <span>Rp 150.000</span>
-                </div>
-                <div class="summary-row">
-                    <span>Kembali</span>
-                    <span>Rp 9.000</span>
-                </div>
+        <!-- Total Pembayaran -->
+        <div class="totals">
+            <div class="row">
+                <span>Subtotal:</span>
+                <span>Rp 101.000</span>
             </div>
-
-            <!-- Catatan Footer -->
-            <div class="footer-thanks">
-                <p>*** Terima Kasih atas Kunjungan Anda ***</p>
-                <p>Barang yang sudah dibeli tidak dapat ditukar</p>
+            <div class="row">
+                <span>Diskon:</span>
+                <span>Rp 0</span>
             </div>
+            <div class="row bold">
+                <span>TOTAL:</span>
+                <span>Rp 101.000</span>
+            </div>
+            <div class="row">
+                <span>Bayar:</span>
+                <span>Rp 105.000</span>
+            </div>
+            <div class="row">
+                <span>Kembali:</span>
+                <span>Rp 4.000</span>
+            </div>
+        </div>
+
+        <!-- Footer Struk -->
+        <div class="footer">
+            <p>*** TERIMA KASIH ***</p>
+            <p>Barang yang sudah dibeli<br>tidak dapat dikembalikan.</p>
         </div>
     </div>
 
-    <!-- Script Pengolahan Fitur -->
+    <!-- Script Pengolah Fitur -->
     <script>
-        // 1. Fitur Simpan/Download Gambar JPG
+        // Registrasi Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
+            });
+        }
+
+        // 1. Fitur Simpan Gambar JPG
         function downloadJPG() {
-            const notaElement = document.getElementById('notaArea');
-            
-            // Konversi HTML Nota ke Canvas Gambar JPG HD
-            html2canvas(notaElement, {
-                scale: 2, // Meningkatkan resolusi gambar hasil
-                useCORS: true
-            }).then(canvas => {
+            const element = document.getElementById('nota-cetak');
+            html2canvas(element, { scale: 3, useCORS: true }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = 'Struk-Pembayaran-TRX20260906.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.download = 'Struk-TRX-20260906.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
                 link.click();
             });
         }
 
-        // 2. Fitur Share Rincian ke WhatsApp
-        function shareWhatsApp() {
-            const noHp = "6281234567890"; // Ganti dengan nomor tujuan
-            const teksPesan = `*TOKO BERKAH PWA*%0A` +
-                `----------------------------------------%0A` +
-                `*No. Struk:* #TRX-20260906%0A` +
-                `*Tanggal:* 06/09/2026 09:30%0A%0A` +
-                `*Rincian Belanja:*%0A` +
-                `- Kopi Arabika 250g (x2) : Rp 90.000%0A` +
-                `- Gula Pasir 1kg (x1) : Rp 15.000%0A` +
-                `- Susu UHT 1L (x2) : Rp 36.000%0A%0A` +
-                `----------------------------------------%0A` +
-                `*TOTAL:* Rp 141.000%0A` +
-                `*Bayar:* Rp 150.000%0A` +
-                `*Kembali:* Rp 9.000%0A%0A` +
-                `_Terima kasih telah berbelanja di Toko Berkah!_`;
-
-            const urlWA = `https://api.whatsapp.com/send?phone=${noHp}&text=${teksPesan}`;
-            window.open(urlWA, '_blank');
+        // 2. Fitur Download PDF Ukuran Lebar 58mm
+        function downloadPDF() {
+            const element = document.getElementById('nota-cetak');
+            const opt = {
+                margin:       0,
+                filename:     'Struk-TRX-20260906.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 3, useCORS: true },
+                jsPDF:        { unit: 'mm', format: [58, 150], orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
         }
 
-        // 3. Registrasi Service Worker PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker Terdaftar:', reg))
-                    .catch(err => console.log('Gagal mendaftarkan Service Worker:', err));
-            });
+        // 3. Fitur Share Format WhatsApp
+        function shareWhatsApp() {
+            const nomorWA = ""; // Kosongkan agar pengguna bisa memilih kontak tujuan di WA
+            const pesan = encodeURIComponent(
+                "*TOKO PWA UTAMA*\n" +
+                "-----------------------------------\n" +
+                "No. Nota: #TRX-20260906\n" +
+                "Tanggal: 06/09/2026 09:30\n" +
+                "-----------------------------------\n" +
+                "• Kopi Robusta 250g (x2) = Rp 50.000\n" +
+                "• Gula Pasir 1kg (x1) = Rp 15.000\n" +
+                "• Susu Kental Manis (x3) = Rp 36.000\n" +
+                "-----------------------------------\n" +
+                "*TOTAL: Rp 101.000*\n" +
+                "Bayar: Rp 105.000\n" +
+                "Kembali: Rp 4.000\n\n" +
+                "Terima kasih telah berbelanja!"
+            );
+            window.open(`https://wa.me/${nomorWA}?text=${pesan}`, '_blank');
         }
     </script>
 </body>
