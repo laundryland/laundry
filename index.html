@@ -1,158 +1,97 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <title>Cetak Struk Gaji</title>
-  <style>
-    /* Format Tampilan Layar */
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f4f4f4;
-    }
+import re
 
-    .btn-cetak {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      font-size: 14px;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
+with open("index.html", "r", encoding="utf-8") as f:
+    html = f.read()
 
-    .btn-cetak:hover {
-      background-color: #0056b3;
-    }
+# 1. Update Sub Total labels in input form:
+# Replaces Sub Total in income group with "Total Gaji" and in deduction group with "Total Potongan"
+# In index.html:
+# <span class="font-extrabold text-emerald-900 text-base">Sub Total</span>
+# <span class="font-extrabold text-red-900 text-base">Sub Total</span>
 
-    /* Container Struk */
-    .struk {
-      width: 58mm;
-      background: white;
-      padding: 5mm 2mm;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-      box-sizing: border-box;
-      font-size: 11px;
-      line-height: 1.3;
-    }
+html_mod = html.replace('<span class="font-extrabold text-emerald-900 text-base">Sub Total</span>', '<span class="font-extrabold text-emerald-900 text-base">Total Gaji</span>')
+html_mod = html_mod.replace('<span class="font-extrabold text-red-900 text-base">Sub Total</span>', '<span class="font-extrabold text-red-900 text-base">Total Potongan</span>')
 
-    /* Ukuran Logo 2 cm */
-    .logo {
-      width: 2cm;
-      height: auto;
-      display: block;
-      margin: 0 auto 8px auto;
-    }
+# 2. Add PDF print button (width 58mm) next to Thermal & Gambar buttons
+# Find <div class="grid grid-cols-2 gap-2">
+grid_old = '<div class="grid grid-cols-2 gap-2">'
+grid_new = '''<div class="grid grid-cols-3 gap-2">
+        <button type="button" id="btnCetakPDF" class="bg-red-600 text-white py-2 rounded text-xs font-bold hover:bg-red-700">
+          📄 PDF (58mm)
+        </button>'''
+html_mod = html_mod.replace(grid_old, grid_new)
 
-    .header-text {
-      text-align: center;
-      margin-bottom: 10px;
-    }
+# 3. Add Logo to Header/Kop Surat on the print template (#print-area)
+# Logo size: 2cm (width & height ~ 2cm / 20mm), source: icon-512x512.png
+# Place logo centered at the top of Kop Surat in #print-area and enlarge/set to 2cm (20mm / 2cm)
+header_old = '''  <div id="print-area" class="screen-hidden rounded-lg shadow-sm border border-gray-200">
+    <div class="bg-sky-700 text-white p-2 rounded-t-md text-center mb-2">
+      <h2 id="outOutletHeader" style="font-weight: 800; font-size: 20px; margin: 0; line-height: 1.1; text-transform: uppercase;">LAUNDRY LAND</h2>'''
 
-    .divider {
-      border-top: 1px dashed #000;
-      margin: 6px 0;
-    }
+header_new = '''  <div id="print-area" class="screen-hidden rounded-lg shadow-sm border border-gray-200">
+    <div class="bg-sky-700 text-white p-2 rounded-t-md text-center mb-2">
+      <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 4px;">
+        <img src="icon-512x512.png" alt="Logo" style="width: 2cm; height: 2cm; object-fit: contain; background: white; border-radius: 50%; padding: 2px;">
+      </div>
+      <h2 id="outOutletHeader" style="font-weight: 800; font-size: 20px; margin: 0; line-height: 1.1; text-transform: uppercase;">LAUNDRY LAND</h2>'''
 
-    .row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 3px;
-    }
+html_mod = html_mod.replace(header_old, header_new)
 
-    .bold {
-      font-weight: bold;
-    }
+# 4. Update JavaScript to display "Total Gaji" and "Total Potongan" in output/print template instead of "Sub Total"
+# In updateTemplateCetak():
+js_subtotal_old = "addRow('Sub Total', data.subTotal, false, true);"
+js_subtotal_new = "addRow('Total Gaji', data.subTotal, false, true);"
 
-    /* CSS Khusus Cetak / PDF */
-    @media print {
-      @page {
-        size: 58mm auto; /* Lebar 58mm, tinggi menyesuaikan */
-        margin: 0; /* Hilangkan margin bawaan printer */
-      }
+js_subtotal_pot_old = "addRow('Sub Total', data.subTotalPotongan, true, true);"
+js_subtotal_pot_new = "addRow('Total Potongan', data.subTotalPotongan, true, true);"
 
-      body {
-        background-color: white;
-        padding: 0;
-        margin: 0;
-      }
+html_mod = html_mod.replace(js_subtotal_old, js_subtotal_new)
+html_mod = html_mod.replace(js_subtotal_pot_old, js_subtotal_pot_new)
 
-      .btn-cetak {
-        display: none; /* Sembunyikan tombol saat dicetak */
-      }
+# Also in bluetooth print text & WA text if needed
+html_mod = html_mod.replace('padRow("Sub Total", "Rp "', 'padRow("Total Gaji", "Rp "')
+html_mod = html_mod.replace('padRow("Sub Total", "-Rp "', 'padRow("Total Potongan", "-Rp "')
+html_mod = html_mod.replace('• *Sub Total: Rp ', '• *Total Gaji: Rp ')
+html_mod = html_mod.replace('• *Sub Total: -Rp ', '• *Total Potongan: -Rp ')
 
-      .struk {
-        box-shadow: none;
-        width: 58mm;
-        padding: 2mm;
-      }
-    }
-  </style>
-</head>
-<body>
+# 5. Add html2pdf or window.print PDF handling script for 58mm PDF output
+# Add html2pdf script tag in head or before body close
+html2pdf_script = '<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>\n</head>'
+html_mod = html_mod.replace('</head>', html2pdf_script)
 
-  <!-- Tombol Cetak -->
-  <button class="btn-cetak" onclick="window.print()">Cetak PDF</button>
+# Add event listener for btnCetakPDF
+js_pdf_handler = '''
+      document.getElementById('btnCetakPDF').addEventListener('click', function() {
+        updateTemplateCetak();
+        var printArea = document.getElementById('print-area');
+        printArea.classList.remove('screen-hidden');
+        var dropTTD = document.getElementById('selectPenandatangan');
+        dropTTD.style.display = 'none';
 
-  <!-- Area Struk -->
-  <div class="struk">
-    <!-- Logo 2 cm -->
-    <img src="https://via.placeholder.com/200x200?text=Logo" alt="Logo Perusahaan" class="logo">
+        var data = getDataForm();
+        var opt = {
+          margin:       0,
+          filename:     'SlipGaji_' + data.nama.replace(/\\s+/g, '_') + '_' + data.periode + '.pdf',
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 3, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF:        { unit: 'mm', format: [58, 160], orientation: 'portrait' }
+        };
 
-    <div class="header-text">
-      <div class="bold">PT UTAMA JAYA</div>
-      <div>Slip Gaji Karyawan</div>
-    </div>
+        html2pdf().set(opt).from(printArea).save().then(function() {
+          printArea.classList.add('screen-hidden');
+          dropTTD.style.display = 'block';
+        }).catch(function(err) {
+          alert('Gagal membuat PDF: ' + err.message);
+          printArea.classList.add('screen-hidden');
+          dropTTD.style.display = 'block';
+        });
+      });
+'''
 
-    <div class="divider"></div>
+# Insert js_pdf_handler before document.getElementById('btnSaveGambar')
+html_mod = html_mod.replace("document.getElementById('btnSaveGambar').addEventListener('click', function() {", js_pdf_handler + "\n      document.getElementById('btnSaveGambar').addEventListener('click', function() {")
 
-    <!-- Rincian Gaji -->
-    <div class="row">
-      <span>Gaji Pokok</span>
-      <span>3.500.000</span>
-    </div>
-    <div class="row">
-      <span>Tunjangan</span>
-      <span>500.000</span>
-    </div>
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html_mod)
 
-    <div class="divider"></div>
-
-    <!-- Total Gaji menggantikan Subtotal -->
-    <div class="row bold">
-      <span>Total Gaji</span>
-      <span>4.000.000</span>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- Rincian Potongan -->
-    <div class="row">
-      <span>BPJS</span>
-      <span>100.000</span>
-    </div>
-    <div class="row">
-      <span>PPH 21</span>
-      <span>50.000</span>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- Total Potongan menggantikan Subtotal Potongan -->
-    <div class="row bold">
-      <span>Total Potongan</span>
-      <span>150.000</span>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- Take Home Pay -->
-    <div class="row bold" style="font-size: 12px;">
-      <span>Gaji Bersih</span>
-      <span>3.850.000</span>
-    </div>
-  </div>
-
-</body>
-</html>
+print("Updated index.html successfully.")
