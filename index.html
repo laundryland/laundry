@@ -1,831 +1,396 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Slip Gaji - LAUNDRY LAND & RESIQ</title>
-  
-  <meta name="theme-color" content="#0284c7">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="SlipGaji">
-  
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192x192.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Cetak & Kasir PWA</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Manifest PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Icon untuk PWA & Browser (Menggunakan icon-192x192.png) -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192x192.png">
 
-  <style>
-    body { 
-      font-family: 'Poppins', sans-serif; 
-      user-select: none;
-      -webkit-user-select: none;
-    }
+    <!-- html2canvas untuk Fitur Export Nota ke Gambar/JPG -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    #print-area {
-      width: 58mm;
-      padding: 3mm;
-      margin: 0 auto;
-      font-family: 'Poppins', sans-serif;
-      box-sizing: border-box;
-      background: #ffffff;
-    }
+    <style>
+        /* ==================== GLOBAL STYLES ==================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-    .screen-hidden { display: none !important; }
+        body {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            padding: 20px;
+        }
 
-    @page { size: 58mm auto; margin: 0mm; }
-    
-    @media print {
-      body { background: #fff !important; }
-      .no-print, header, main { display: none !important; }
-      #print-area {
-        display: block !important;
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 58mm !important;
-      }
-      .no-print-in-pdf { display: none !important; }
-    }
-  </style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Control Panel / Actions (Disembunyikan saat cetak) */
+        .action-panel {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary { background-color: #2563eb; color: white; }
+        .btn-primary:hover { background-color: #1d4ed8; }
+
+        .btn-success { background-color: #059669; color: white; }
+        .btn-success:hover { background-color: #047857; }
+
+        .btn-wa { background-color: #25D366; color: white; }
+        .btn-wa:hover { background-color: #1da851; }
+
+        /* ==================== NOTA / STRUK CONTAINER ==================== */
+        .receipt-card {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            width: 100%;
+            max-width: 500px; /* Lebar optimal untuk layar & hasil cetak JPG */
+        }
+
+        /* Kop Surat / Header Nota */
+        .header-kop {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        /* Logo PWA di Kop Nota */
+        .header-kop img.pwa-logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .header-info {
+            flex: 1;
+        }
+
+        .header-info h2 {
+            font-size: 18px;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header-info p {
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.3;
+        }
+
+        /* Detail Transaksi */
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #4b5563;
+            margin-bottom: 15px;
+        }
+
+        /* Tabel Belanja */
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .item-table th {
+            text-align: left;
+            border-bottom: 1px solid #d1d5db;
+            padding: 6px 0;
+            color: #374151;
+        }
+
+        .item-table td {
+            padding: 6px 0;
+            border-bottom: 1px dashed #e5e7eb;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        /* Total / Footer Nota */
+        .summary-section {
+            border-top: 1px solid #111827;
+            padding-top: 10px;
+            font-size: 13px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .summary-row.grand-total {
+            font-weight: bold;
+            font-size: 15px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #9ca3af;
+        }
+
+        .footer-thanks {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* ==================== STYLES KHUSUS PRINTER THERMAL 58mm ==================== */
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .action-panel {
+                display: none !important; /* Sembunyikan Tombol Aksi */
+            }
+
+            .receipt-card {
+                width: 58mm !important; /* Otomatis pas untuk kertas Thermal 58mm */
+                max-width: 58mm !important;
+                padding: 2mm !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                color: #000 !important;
+            }
+
+            .header-kop {
+                flex-direction: column;
+                text-align: center;
+                gap: 5px;
+                border-bottom: 1px dashed #000 !important;
+                padding-bottom: 8px;
+            }
+
+            .header-kop img.pwa-logo {
+                width: 40px !important;
+                height: 40px !important;
+            }
+
+            .header-info h2 {
+                font-size: 13px !important;
+            }
+
+            .header-info p {
+                font-size: 9px !important;
+            }
+
+            .meta-info {
+                flex-direction: column;
+                font-size: 9px !important;
+                border-bottom: 1px dashed #000;
+                padding-bottom: 5px;
+            }
+
+            .item-table {
+                font-size: 10px !important;
+            }
+
+            .item-table th, .item-table td {
+                border-bottom: 1px dashed #ccc !important;
+            }
+
+            .summary-section {
+                border-top: 1px dashed #000 !important;
+                font-size: 10px !important;
+            }
+
+            .footer-thanks {
+                font-size: 9px !important;
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-800 min-h-screen pb-10 relative select-none">
+<body>
 
-  <header class="bg-sky-700 text-white p-4 shadow-md text-center no-print pt-8">
-    <h1 class="text-xl font-bold">Aplikasi Slip Gaji PWA</h1>
-    <p class="text-xs text-sky-200">Laundry Land & ResiQ Laundry</p>
-  </header>
-
-  <main class="max-w-md mx-auto p-4 space-y-4 no-print">
-    
-    <div class="bg-white p-4 rounded-xl shadow border border-gray-200">
-      <h2 class="font-bold text-lg border-b pb-2 mb-3">Input Slip Gaji</h2>
-      
-      <div class="space-y-3 text-sm">
-        
-        <div>
-          <label class="block font-semibold mb-1">Outlet</label>
-          <div class="flex gap-1">
-            <select id="selectOutlet" class="w-full border rounded p-2 focus:ring-2 focus:ring-sky-500 outline-none font-semibold"></select>
-            <button type="button" id="btnTambahOutlet" class="bg-emerald-600 text-white px-3 py-1 rounded font-bold hover:bg-emerald-700" title="Tambah Outlet Baru">+</button>
-            <button type="button" id="btnHapusOutlet" class="bg-red-500 text-white px-2 py-1 rounded font-bold hover:bg-red-600" title="Hapus Outlet Terpilih">✕</button>
-          </div>
+    <div class="container">
+        <!-- Panel Tombol Aksi -->
+        <div class="action-panel">
+            <button class="btn btn-primary" onclick="window.print()">
+                🖨️ Cetak Thermal (58mm)
+            </button>
+            <button class="btn btn-success" onclick="downloadJPG()">
+                🖼️ Simpan / Cetak JPG
+            </button>
+            <button class="btn btn-wa" onclick="shareWhatsApp()">
+                💬 Share ke WhatsApp
+            </button>
         </div>
 
-        <div>
-          <label class="block font-semibold mb-1">Nama Karyawan</label>
-          <div class="flex gap-1">
-            <select id="selectNama" class="w-full border rounded p-2 focus:ring-2 focus:ring-sky-500 outline-none font-semibold"></select>
-            <button type="button" id="btnTambahNama" class="bg-emerald-600 text-white px-3 py-1 rounded font-bold hover:bg-emerald-700" title="Tambah Karyawan Baru">+</button>
-            <button type="button" id="btnHapusNama" class="bg-red-500 text-white px-2 py-1 rounded font-bold hover:bg-red-600" title="Hapus Karyawan Terpilih">✕</button>
-          </div>
+        <!-- Area Nota / Struk Pembayaran -->
+        <div class="receipt-card" id="notaArea">
+            <!-- Kop / Header dengan Logo PWA -->
+            <div class="header-kop">
+                <img src="icon-192x192.png" alt="Logo PWA" class="pwa-logo" id="logoNota">
+                <div class="header-info">
+                    <h2>TOKO BERKAH PWA</h2>
+                    <p>Jl. Merdeka No. 45, Jakarta</p>
+                    <p>Telp/WA: 0812-3456-7890</p>
+                </div>
+            </div>
+
+            <!-- Meta Informasi Transaksi -->
+            <div class="meta-info">
+                <div>No: #TRX-20260906</div>
+                <div>Tgl: 06/09/2026 09:30</div>
+            </div>
+
+            <!-- Tabel Barang Belanja -->
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-right">Harga</th>
+                        <th class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Kopi Arabika 250g</td>
+                        <td class="text-center">2</td>
+                        <td class="text-right">45.000</td>
+                        <td class="text-right">90.000</td>
+                    </tr>
+                    <tr>
+                        <td>Gula Pasir 1kg</td>
+                        <td class="text-center">1</td>
+                        <td class="text-right">15.000</td>
+                        <td class="text-right">15.000</td>
+                    </tr>
+                    <tr>
+                        <td>Susu UHT 1L</td>
+                        <td class="text-center">2</td>
+                        <td class="text-right">18.000</td>
+                        <td class="text-right">36.000</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Rincian Pembayaran -->
+            <div class="summary-section">
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span>Rp 141.000</span>
+                </div>
+                <div class="summary-row">
+                    <span>Diskon</span>
+                    <span>Rp 0</span>
+                </div>
+                <div class="summary-row grand-total">
+                    <span>TOTAL</span>
+                    <span>Rp 141.000</span>
+                </div>
+                <div class="summary-row" style="margin-top: 5px;">
+                    <span>Bayar (Tunai)</span>
+                    <span>Rp 150.000</span>
+                </div>
+                <div class="summary-row">
+                    <span>Kembali</span>
+                    <span>Rp 9.000</span>
+                </div>
+            </div>
+
+            <!-- Catatan Footer -->
+            <div class="footer-thanks">
+                <p>*** Terima Kasih atas Kunjungan Anda ***</p>
+                <p>Barang yang sudah dibeli tidak dapat ditukar</p>
+            </div>
         </div>
-
-        <div>
-          <label class="block font-semibold mb-1">Periode Bulan/Tahun</label>
-          <input type="month" id="periode" class="w-full border rounded p-2 focus:ring-2 focus:ring-sky-500 outline-none">
-        </div>
-
-        <div>
-          <label class="block font-semibold mb-1">Penandatangan Slip</label>
-          <select id="selectPenandatanganInput" class="w-full border rounded p-2 focus:ring-2 focus:ring-sky-500 outline-none font-semibold text-sky-800">
-            <option value="Sandy">Sandy</option>
-            <option value="Dian">Dian</option>
-          </select>
-        </div>
-
-        <hr class="my-2">
-
-        <div class="space-y-2">
-          <label class="font-bold text-sky-800">Komponen Gaji & Potongan:</label>
-
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <input type="checkbox" id="checkGajiPokok" checked>
-              <span class="font-medium">Gaji Pokok</span>
-            </div>
-            <div id="groupGajiPokok" class="w-1/2">
-              <input type="number" id="gajiPokok" value="0" class="w-full border rounded p-1 text-right font-semibold input-hitung">
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <input type="checkbox" id="checkBonus" checked>
-              <span class="font-medium">Bonus</span>
-            </div>
-            <div id="groupBonus" class="w-1/2">
-              <input type="number" id="bonus" value="0" class="w-full border rounded p-1 text-right font-semibold input-hitung">
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <input type="checkbox" id="checkInsentif" checked>
-              <span class="font-medium">Insentif</span>
-            </div>
-            <div id="groupInsentif" class="w-1/2">
-              <input type="number" id="insentif" value="0" class="w-full border rounded p-1 text-right font-semibold input-hitung">
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between gap-2 bg-emerald-50 p-2 rounded border border-emerald-300 my-1">
-            <span class="font-extrabold text-emerald-900 text-base">Sub Total</span>
-            <span id="labelSubTotal" class="font-extrabold text-emerald-900 text-base">Rp 0</span>
-          </div>
-
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 text-red-600">
-              <input type="checkbox" id="checkPinjaman" checked>
-              <span class="font-medium">Pot. Pinjaman</span>
-            </div>
-            <div id="groupPinjaman" class="w-1/2">
-              <input type="number" id="pinjaman" value="0" class="w-full border rounded p-1 text-right font-semibold input-hitung">
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 text-red-600">
-              <input type="checkbox" id="checkTidakHadir" checked>
-              <span class="text-sm font-medium">Pot. Tdk Hadir</span>
-            </div>
-            <div id="groupTidakHadir" class="w-3/5 flex items-center gap-1">
-              <input type="number" id="hariAbsen" value="0" class="w-1/3 border rounded p-1 text-center text-xs font-semibold input-hitung" placeholder="Hr">
-              <span class="text-xs font-bold">x</span>
-              <input type="number" id="nominalAbsen" value="0" class="w-2/3 border rounded p-1 text-right text-xs font-semibold input-hitung" placeholder="Rp/Hr">
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between gap-2 bg-red-50 p-2 rounded border border-red-300 my-1">
-            <span class="font-extrabold text-red-900 text-base">Sub Total</span>
-            <span id="labelSubTotalPotongan" class="font-extrabold text-red-900 text-base">-Rp 0</span>
-          </div>
-
-        </div>
-
-        <div class="pt-2">
-          <label class="block font-semibold mb-1">Catatan Tambahan</label>
-          <textarea id="catatan" rows="2" class="w-full border rounded p-2 focus:ring-2 focus:ring-sky-500 outline-none text-xs" placeholder="Catatan opsional..."></textarea>
-        </div>
-
-        <div class="pt-2 border-t flex justify-between font-bold text-base">
-          <span>Total THP:</span>
-          <span id="labelTotalTHP" class="text-sky-700">Rp 0</span>
-        </div>
-
-        <button type="button" id="btnSimpan" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition">
-          💾 Simpan Ke Database
-        </button>
-      </div>
     </div>
 
-    <div class="bg-white p-4 rounded-xl shadow border border-gray-200 space-y-3">
-      <h3 class="font-bold text-sm text-gray-600">Opsi Output & Share</h3>
-      
-      <div class="grid grid-cols-2 gap-2">
-        <button type="button" id="btnCetakThermal" class="bg-gray-800 text-white py-2 rounded text-xs font-bold hover:bg-gray-900">
-          🖨️ Thermal
-        </button>
-
-        <button type="button" id="btnSaveGambar" class="bg-purple-600 text-white py-2 rounded text-xs font-bold hover:bg-purple-700">
-          🖼️ Gambar (JPG)
-        </button>
-      </div>
-
-      <div class="border-t pt-2 space-y-2">
-        <label class="block font-bold text-xs text-gray-600">Bagikan Slip via WA:</label>
-        
-        <div>
-          <button type="button" id="btnWABusiness" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-2 rounded text-xs font-bold">
-            💼 Text WA Business
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white p-4 rounded-xl shadow border border-gray-200 space-y-3">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="font-bold text-base">Riwayat Database</h2>
-        <div class="flex gap-1">
-          <button type="button" id="btnBackup" class="text-xs bg-sky-100 text-sky-800 px-2 py-1 rounded font-bold">
-            ☁️ Backup
-          </button>
-          <label for="inputRestore" class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold cursor-pointer">
-            📥 Restore
-          </label>
-          <input type="file" id="inputRestore" accept=".json" class="hidden">
-        </div>
-      </div>
-
-      <div id="daftarRiwayat" class="space-y-2 max-h-48 overflow-y-auto text-xs"></div>
-    </div>
-
-  </main>
-
-  <div id="print-area" class="screen-hidden rounded-lg shadow-sm border border-gray-200">
-    <div class="bg-sky-700 text-white p-2 rounded-t-md text-center mb-2">
-      <h2 id="outOutletHeader" style="font-weight: 800; font-size: 20px; margin: 0; line-height: 1.1; text-transform: uppercase;">LAUNDRY LAND</h2>
-      <p style="font-size: 9px; font-weight: 600; margin: 2px 0 0 0;">Head Office : WA 08989671000</p>
-      <p style="font-size: 8px; font-weight: 500; margin: 1px 0 0 0;">Jalan Setia Budi Timur No 62</p>
-      <p style="font-size: 8px; font-weight: 500; margin: 1px 0 0 0;">Madiun 63118</p>
-    </div>
-
-    <div style="text-align: left; font-weight: 800; font-size: 15px; border-bottom: 2px solid #0284c7; padding-bottom: 2px; margin-bottom: 6px; color: #0369a1;">
-      SLIP GAJI
-    </div>
-
-    <div style="font-size: 9px; font-weight: 600; background: #f0f9ff; padding: 4px; rounded: 4px; margin-bottom: 6px; color: #1e3a8a; line-height: 1.4;">
-      <p style="margin: 1px 0;">Tanggal : <span id="outTanggal">-</span></p>
-      <p style="margin: 1px 0;">Nama    : <span id="outNama" style="font-weight: 700;">-</span></p>
-      <p style="margin: 1px 0;">Periode : <span id="outPeriode">-</span></p>
-    </div>
-
-    <div id="outRincian" class="space-y-1" style="font-size: 9px; font-weight: 600;"></div>
-
-    <div style="font-size: 12px; font-weight: 800; background: #0284c7; color: white; display: flex; justify-content: space-between; padding: 4px 6px; border-radius: 4px; margin-top: 6px; margin-bottom: 6px;">
-      <span>TOTAL THP:</span>
-      <span id="outTotalTHP">Rp 0</span>
-    </div>
-
-    <div id="outCatatanContainer" style="font-size: 8px; font-weight: 600; background: #fffbebf; color: #78350f; padding: 4px; border-radius: 4px; border: 1px solid #fef3c7; margin-bottom: 8px; display: none;">
-      <p style="font-weight: 700; margin: 0;">Catatan:</p>
-      <p id="outCatatan" style="font-style: italic; margin: 0; white-space: pre-wrap;"></p>
-    </div>
-
-    <div style="display: flex; justify-content: flex-end; margin-top: 10px; margin-bottom: 6px;">
-      <div style="text-align: center; width: 50%;">
-        <p style="font-size: 9px; font-weight: 800; margin: 0; color: #1e293b;">Tanda Tangan</p>
-        
-        <div style="height: 28px;"></div>
-
-        <div style="font-size: 9px; font-weight: 700; color: #0f172a;">
-          (<span id="outPenandatanganNama">Sandy</span>)
-        </div>
-
-        <select id="selectPenandatangan" class="no-print-in-pdf mt-1 text-[9px] border rounded px-1 py-0.5 font-bold text-gray-700 w-full text-center">
-          <option value="Sandy">(Sandy)</option>
-          <option value="Dian">(Dian)</option>
-        </select>
-      </div>
-    </div>
-
-    <div style="font-size: 9px; font-weight: 700; text-align: center; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1; color: #64748b;">
-      <p style="margin: 0;">Terima kasih telah bekerja keras</p>
-    </div>
-  </div>
-
-  <script>
-    // Registrasi Service Worker untuk PWA Offline & Fullscreen
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('./sw.js').then(function(reg) {
-          console.log('Service Worker Registered');
-        }).catch(function(err) {
-          console.error('Service Worker Registration Failed: ', err);
-        });
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      var dbGaji = JSON.parse(localStorage.getItem('db_slip_gaji') || '[]');
-      var listOutlet = JSON.parse(localStorage.getItem('db_list_outlet') || '["Laundry Land", "ResiQ Laundry"]');
-      var listNama = JSON.parse(localStorage.getItem('db_list_nama') || '["Karyawan 1", "Karyawan 2"]');
-
-      var now = new Date();
-      var month = String(now.getMonth() + 1).padStart(2, '0');
-      document.getElementById('periode').value = now.getFullYear() + '-' + month;
-
-      renderDropdownOutlet();
-      renderDropdownNama();
-      renderRiwayat();
-
-      var inputTTD = document.getElementById('selectPenandatanganInput');
-      var printTTD = document.getElementById('selectPenandatangan');
-      var labelTTD = document.getElementById('outPenandatanganNama');
-
-      inputTTD.addEventListener('change', function() {
-        printTTD.value = this.value;
-        labelTTD.innerText = this.value;
-      });
-
-      printTTD.addEventListener('change', function() {
-        var val = this.value.replace('(', '').replace(')', '');
-        inputTTD.value = val;
-        labelTTD.innerText = val;
-      });
-
-      function renderDropdownOutlet() {
-        var select = document.getElementById('selectOutlet');
-        select.innerHTML = '';
-        listOutlet.forEach(function(item) {
-          var opt = document.createElement('option');
-          opt.value = item;
-          opt.textContent = item;
-          select.appendChild(opt);
-        });
-      }
-
-      document.getElementById('btnTambahOutlet').addEventListener('click', function() {
-        var baru = prompt('Masukkan Nama Outlet Baru:');
-        if (baru && baru.trim() !== '') {
-          baru = baru.trim();
-          if (!listOutlet.includes(baru)) {
-            listOutlet.push(baru);
-            localStorage.setItem('db_list_outlet', JSON.stringify(listOutlet));
-            renderDropdownOutlet();
-            document.getElementById('selectOutlet').value = baru;
-          } else {
-            alert('Nama outlet sudah ada!');
-          }
-        }
-      });
-
-      document.getElementById('btnHapusOutlet').addEventListener('click', function() {
-        var select = document.getElementById('selectOutlet');
-        var val = select.value;
-        if (!val) return;
-        if (confirm('Hapus outlet "' + val + '" dari daftar pilihan?')) {
-          listOutlet = listOutlet.filter(function(item) { return item !== val; });
-          localStorage.setItem('db_list_outlet', JSON.stringify(listOutlet));
-          renderDropdownOutlet();
-        }
-      });
-
-      function renderDropdownNama() {
-        var select = document.getElementById('selectNama');
-        select.innerHTML = '';
-        listNama.forEach(function(item) {
-          var opt = document.createElement('option');
-          opt.value = item;
-          opt.textContent = item;
-          select.appendChild(opt);
-        });
-      }
-
-      document.getElementById('btnTambahNama').addEventListener('click', function() {
-        var baru = prompt('Masukkan Nama Karyawan Baru:');
-        if (baru && baru.trim() !== '') {
-          baru = baru.trim();
-          if (!listNama.includes(baru)) {
-            listNama.push(baru);
-            localStorage.setItem('db_list_nama', JSON.stringify(listNama));
-            renderDropdownNama();
-            document.getElementById('selectNama').value = baru;
-          } else {
-            alert('Nama karyawan sudah ada!');
-          }
-        }
-      });
-
-      document.getElementById('btnHapusNama').addEventListener('click', function() {
-        var select = document.getElementById('selectNama');
-        var val = select.value;
-        if (!val) return;
-        if (confirm('Hapus karyawan "' + val + '" dari daftar pilihan?')) {
-          listNama = listNama.filter(function(item) { return item !== val; });
-          localStorage.setItem('db_list_nama', JSON.stringify(listNama));
-          renderDropdownNama();
-        }
-      });
-
-      function setupCheckboxToggle(checkId, groupId) {
-        document.getElementById(checkId).addEventListener('change', function() {
-          var grp = document.getElementById(groupId);
-          if (this.checked) {
-            grp.classList.remove('hidden');
-          } else {
-            grp.classList.add('hidden');
-            var inputs = grp.querySelectorAll('input');
-            inputs.forEach(function(i) { i.value = 0; });
-          }
-          hitungTotal();
-        });
-      }
-
-      setupCheckboxToggle('checkGajiPokok', 'groupGajiPokok');
-      setupCheckboxToggle('checkBonus', 'groupBonus');
-      setupCheckboxToggle('checkInsentif', 'groupInsentif');
-      setupCheckboxToggle('checkPinjaman', 'groupPinjaman');
-      setupCheckboxToggle('checkTidakHadir', 'groupTidakHadir');
-
-      var inputHits = document.querySelectorAll('.input-hitung');
-      inputHits.forEach(function(el) {
-        el.addEventListener('input', hitungTotal);
-      });
-
-      function hitungTotal() {
-        var gPokok = document.getElementById('checkGajiPokok').checked ? (parseFloat(document.getElementById('gajiPokok').value) || 0) : 0;
-        var bonus = document.getElementById('checkBonus').checked ? (parseFloat(document.getElementById('bonus').value) || 0) : 0;
-        var insentif = document.getElementById('checkInsentif').checked ? (parseFloat(document.getElementById('insentif').value) || 0) : 0;
-        var pinjaman = document.getElementById('checkPinjaman').checked ? (parseFloat(document.getElementById('pinjaman').value) || 0) : 0;
-        var hrAbsen = parseFloat(document.getElementById('hariAbsen').value) || 0;
-        var nomAbsen = parseFloat(document.getElementById('nominalAbsen').value) || 0;
-        var tidakHadir = document.getElementById('checkTidakHadir').checked ? (hrAbsen * nomAbsen) : 0;
-
-        var subTotal = gPokok + bonus + insentif;
-        document.getElementById('labelSubTotal').innerText = 'Rp ' + subTotal.toLocaleString('id-ID');
-
-        var subTotalPotongan = pinjaman + tidakHadir;
-        document.getElementById('labelSubTotalPotongan').innerText = '-Rp ' + subTotalPotongan.toLocaleString('id-ID');
-
-        var total = subTotal - subTotalPotongan;
-        document.getElementById('labelTotalTHP').innerText = 'Rp ' + total.toLocaleString('id-ID');
-
-        return { subTotal: subTotal, subTotalPotongan: subTotalPotongan, total: total };
-      }
-
-      function getDataForm() {
-        var hrAbsen = parseFloat(document.getElementById('hariAbsen').value) || 0;
-        var nomAbsen = parseFloat(document.getElementById('nominalAbsen').value) || 0;
-        var kalkulasi = hitungTotal();
-
-        return {
-          id: Date.now(),
-          outlet: document.getElementById('selectOutlet').value || 'Laundry Land',
-          nama: document.getElementById('selectNama').value || 'Karyawan',
-          periode: document.getElementById('periode').value,
-          penandatangan: document.getElementById('selectPenandatanganInput').value,
-          catatan: document.getElementById('catatan').value || '',
-          tanggal: new Date().toLocaleDateString('id-ID'),
-          komponen: {
-            gajiPokok: document.getElementById('checkGajiPokok').checked ? (parseFloat(document.getElementById('gajiPokok').value) || 0) : null,
-            bonus: document.getElementById('checkBonus').checked ? (parseFloat(document.getElementById('bonus').value) || 0) : null,
-            insentif: document.getElementById('checkInsentif').checked ? (parseFloat(document.getElementById('insentif').value) || 0) : null,
-            pinjaman: document.getElementById('checkPinjaman').checked ? (parseFloat(document.getElementById('pinjaman').value) || 0) : null,
-            tidakHadir: document.getElementById('checkTidakHadir').checked ? (hrAbsen * nomAbsen) : null
-          },
-          detailAbsen: { hari: hrAbsen, nominal: nomAbsen },
-          subTotal: kalkulasi.subTotal,
-          subTotalPotongan: kalkulasi.subTotalPotongan,
-          thp: kalkulasi.total
-        };
-      }
-
-      document.getElementById('btnSimpan').addEventListener('click', function() {
-        var data = getDataForm();
-        dbGaji.unshift(data);
-        localStorage.setItem('db_slip_gaji', JSON.stringify(dbGaji));
-        renderRiwayat();
-        alert('Data berhasil disimpan!');
-      });
-
-      function renderRiwayat() {
-        var container = document.getElementById('daftarRiwayat');
-        container.innerHTML = '';
-        if (dbGaji.length === 0) {
-          container.innerHTML = '<p class="text-gray-400 text-center py-2">Belum ada data tersimpan.</p>';
-          return;
-        }
-
-        dbGaji.forEach(function(item, index) {
-          var div = document.createElement('div');
-          div.className = "flex justify-between items-center bg-gray-50 p-2 rounded border gap-2";
-          div.innerHTML = '<div>' +
-                            '<p class="font-bold text-gray-800">' + item.nama + ' <span class="text-xs font-normal text-sky-600">(' + (item.outlet || 'Laundry Land') + ')</span></p>' +
-                            '<p class="text-gray-500 font-semibold">Periode: ' + item.periode + ' | THP: Rp ' + item.thp.toLocaleString('id-ID') + '</p>' +
-                          '</div>' +
-                          '<div class="flex gap-1">' +
-                            '<button type="button" data-index="' + index + '" class="btn-edit text-xs bg-amber-500 text-white font-bold px-2 py-1 rounded">Edit</button>' +
-                            '<button type="button" data-index="' + index + '" class="btn-hapus text-xs bg-red-500 text-white font-bold px-2 py-1 rounded">✕</button>' +
-                          '</div>';
-          container.appendChild(div);
-        });
-
-        var btnEditList = container.querySelectorAll('.btn-edit');
-        btnEditList.forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            var idx = this.getAttribute('data-index');
-            var item = dbGaji[idx];
+    <!-- Script Pengolahan Fitur -->
+    <script>
+        // 1. Fitur Simpan/Download Gambar JPG
+        function downloadJPG() {
+            const notaElement = document.getElementById('notaArea');
             
-            if (item.outlet) document.getElementById('selectOutlet').value = item.outlet;
-            if (item.nama) document.getElementById('selectNama').value = item.nama;
-            if (item.penandatangan) {
-              document.getElementById('selectPenandatanganInput').value = item.penandatangan;
-              document.getElementById('selectPenandatangan').value = item.penandatangan;
-              document.getElementById('outPenandatanganNama').innerText = item.penandatangan;
-            }
-            document.getElementById('periode').value = item.periode;
-            document.getElementById('catatan').value = item.catatan || '';
-
-            setField('checkGajiPokok', 'gajiPokok', 'groupGajiPokok', item.komponen.gajiPokok);
-            setField('checkBonus', 'bonus', 'groupBonus', item.komponen.bonus);
-            setField('checkInsentif', 'insentif', 'groupInsentif', item.komponen.insentif);
-            setField('checkPinjaman', 'pinjaman', 'groupPinjaman', item.komponen.pinjaman);
-
-            if (item.komponen.tidakHadir !== null) {
-              document.getElementById('checkTidakHadir').checked = true;
-              document.getElementById('groupTidakHadir').classList.remove('hidden');
-              document.getElementById('hariAbsen').value = item.detailAbsen ? item.detailAbsen.hari : 0;
-              document.getElementById('nominalAbsen').value = item.detailAbsen ? item.detailAbsen.nominal : 0;
-            } else {
-              document.getElementById('checkTidakHadir').checked = false;
-              document.getElementById('groupTidakHadir').classList.add('hidden');
-              document.getElementById('hariAbsen').value = 0;
-              document.getElementById('nominalAbsen').value = 0;
-            }
-
-            hitungTotal();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          });
-        });
-
-        var btnHapusList = container.querySelectorAll('.btn-hapus');
-        btnHapusList.forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            var idx = this.getAttribute('data-index');
-            if (confirm('Hapus riwayat ini?')) {
-              dbGaji.splice(idx, 1);
-              localStorage.setItem('db_slip_gaji', JSON.stringify(dbGaji));
-              renderRiwayat();
-            }
-          });
-        });
-      }
-
-      function setField(checkId, inputId, groupId, value) {
-        var chk = document.getElementById(checkId);
-        var inp = document.getElementById(inputId);
-        var grp = document.getElementById(groupId);
-
-        if (value !== null) {
-          chk.checked = true;
-          grp.classList.remove('hidden');
-          inp.value = value;
-        } else {
-          chk.checked = false;
-          grp.classList.add('hidden');
-          inp.value = 0;
-        }
-      }
-
-      function updateTemplateCetak() {
-        var data = getDataForm();
-        document.getElementById('outOutletHeader').innerText = data.outlet.toUpperCase();
-        document.getElementById('outNama').innerText = data.nama;
-        document.getElementById('outTanggal').innerText = data.tanggal;
-        document.getElementById('outPeriode').innerText = data.periode;
-        document.getElementById('outPenandatanganNama').innerText = data.penandatangan;
-
-        var rincianEl = document.getElementById('outRincian');
-        rincianEl.innerHTML = '';
-
-        function addRow(label, val, isMinus, isSubTotal) {
-          if (val !== null) {
-            var minusStr = isMinus ? '-' : '';
-            var bgClass = isSubTotal 
-              ? (isMinus ? 'bg-red-50 border border-red-200 text-red-900 font-extrabold p-1 rounded' : 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-extrabold p-1 rounded') 
-              : 'flex justify-between py-0.5 text-gray-700';
-
-            var flexStyle = isSubTotal ? 'display: flex; justify-content: space-between;' : '';
-            
-            rincianEl.innerHTML += '<div class="' + bgClass + '" style="' + flexStyle + '"><span>' + label + ':</span><span>' + minusStr + 'Rp ' + val.toLocaleString('id-ID') + '</span></div>';
-          }
+            // Konversi HTML Nota ke Canvas Gambar JPG HD
+            html2canvas(notaElement, {
+                scale: 2, // Meningkatkan resolusi gambar hasil
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Struk-Pembayaran-TRX20260906.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            });
         }
 
-        addRow('Gaji Pokok', data.komponen.gajiPokok, false, false);
-        addRow('Bonus', data.komponen.bonus, false, false);
-        addRow('Insentif', data.komponen.insentif, false, false);
-        addRow('Sub Total', data.subTotal, false, true);
+        // 2. Fitur Share Rincian ke WhatsApp
+        function shareWhatsApp() {
+            const noHp = "6281234567890"; // Ganti dengan nomor tujuan
+            const teksPesan = `*TOKO BERKAH PWA*%0A` +
+                `----------------------------------------%0A` +
+                `*No. Struk:* #TRX-20260906%0A` +
+                `*Tanggal:* 06/09/2026 09:30%0A%0A` +
+                `*Rincian Belanja:*%0A` +
+                `- Kopi Arabika 250g (x2) : Rp 90.000%0A` +
+                `- Gula Pasir 1kg (x1) : Rp 15.000%0A` +
+                `- Susu UHT 1L (x2) : Rp 36.000%0A%0A` +
+                `----------------------------------------%0A` +
+                `*TOTAL:* Rp 141.000%0A` +
+                `*Bayar:* Rp 150.000%0A` +
+                `*Kembali:* Rp 9.000%0A%0A` +
+                `_Terima kasih telah berbelanja di Toko Berkah!_`;
 
-        addRow('Pot. Pinjaman', data.komponen.pinjaman, true, false);
-        var labelAbsen = (data.detailAbsen && data.detailAbsen.hari > 0) ? 'Pot. Absen (' + data.detailAbsen.hari + 'x)' : 'Pot. Tdk Hadir';
-        addRow(labelAbsen, data.komponen.tidakHadir, true, false);
-        addRow('Sub Total', data.subTotalPotongan, true, true);
-
-        document.getElementById('outTotalTHP').innerText = 'Rp ' + data.thp.toLocaleString('id-ID');
-
-        var catEl = document.getElementById('outCatatanContainer');
-        if (data.catatan.trim() !== '') {
-          document.getElementById('outCatatan').innerText = data.catatan;
-          catEl.style.display = 'block';
-        } else {
-          catEl.style.display = 'none';
-        }
-      }
-
-      document.getElementById('btnSaveGambar').addEventListener('click', function() {
-        updateTemplateCetak();
-        var printArea = document.getElementById('print-area');
-        
-        printArea.classList.remove('screen-hidden');
-        
-        var dropTTD = document.getElementById('selectPenandatangan');
-        dropTTD.style.display = 'none';
-
-        html2canvas(printArea, {
-          scale: 3,
-          useCORS: true,
-          backgroundColor: '#ffffff'
-        }).then(function(canvas) {
-          var link = document.createElement('a');
-          var data = getDataForm();
-          link.download = 'SlipGaji_' + data.nama.replace(/\s+/g, '_') + '_' + data.periode + '.jpg';
-          link.href = canvas.toDataURL('image/jpeg', 0.95);
-          link.click();
-
-          printArea.classList.add('screen-hidden');
-          dropTTD.style.display = 'block';
-        }).catch(function(err) {
-          alert('Gagal membuat gambar: ' + err.message);
-          printArea.classList.add('screen-hidden');
-          dropTTD.style.display = 'block';
-        });
-      });
-
-      async function eksekusiCetakBluetooth() {
-        if (!navigator.bluetooth) {
-          alert("Browser tidak mendukung Web Bluetooth API! Gunakan Google Chrome di Android via HTTPS.");
-          return;
+            const urlWA = `https://api.whatsapp.com/send?phone=${noHp}&text=${teksPesan}`;
+            window.open(urlWA, '_blank');
         }
 
-        var data = getDataForm();
-        
-        var INIT = '\x1B\x40';
-        var ALIGN_CENTER = '\x1B\x61\x01';
-        var ALIGN_LEFT = '\x1B\x61\x00';
-        var ALIGN_RIGHT = '\x1B\x61\x02';
-        var BOLD_ON = '\x1B\x45\x01';
-        var BOLD_OFF = '\x1B\x45\x00';
-        var DOUBLE_HEIGHT_ON = '\x1B\x21\x10';
-        var DOUBLE_HEIGHT_OFF = '\x1B\x21\x00';
-        var FEED_LINES = '\n\n\n';
-
-        function padRow(leftStr, rightStr, maxLen) {
-          if (!maxLen) maxLen = 32;
-          var spaceAvailable = maxLen - leftStr.length - rightStr.length;
-          if (spaceAvailable < 1) spaceAvailable = 1;
-          return leftStr + ' '.repeat(spaceAvailable) + rightStr + '\n';
+        // 3. Registrasi Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker Terdaftar:', reg))
+                    .catch(err => console.log('Gagal mendaftarkan Service Worker:', err));
+            });
         }
-
-        var txt = ALIGN_CENTER + BOLD_ON + DOUBLE_HEIGHT_ON + data.outlet.toUpperCase() + '\n' + DOUBLE_HEIGHT_OFF + BOLD_OFF;
-        txt += "Head Office : WA 08989671000\n";
-        txt += "Jalan Setia Budi Timur No 62\n";
-        txt += "Madiun 63118\n\n";
-        txt += ALIGN_LEFT + BOLD_ON + "SLIP GAJI\n" + BOLD_OFF;
-        txt += "--------------------------------\n";
-        txt += "Tgl    : " + data.tanggal + "\n";
-        txt += "Nama   : " + data.nama + "\n";
-        txt += "Periode: " + data.periode + "\n";
-        txt += "--------------------------------\n";
-
-        if (data.komponen.gajiPokok !== null) txt += padRow("Gaji Pokok", "Rp " + data.komponen.gajiPokok.toLocaleString('id-ID'));
-        if (data.komponen.bonus !== null) txt += padRow("Bonus", "Rp " + data.komponen.bonus.toLocaleString('id-ID'));
-        if (data.komponen.insentif !== null) txt += padRow("Insentif", "Rp " + data.komponen.insentif.toLocaleString('id-ID'));
-        
-        txt += BOLD_ON + DOUBLE_HEIGHT_ON + padRow("Sub Total", "Rp " + data.subTotal.toLocaleString('id-ID')) + DOUBLE_HEIGHT_OFF + BOLD_OFF;
-
-        if (data.komponen.pinjaman !== null) txt += padRow("Pot. Pinjaman", "-Rp " + data.komponen.pinjaman.toLocaleString('id-ID'));
-        if (data.komponen.tidakHadir !== null) {
-          var labelAbs = data.detailAbsen.hari > 0 ? "Pot. Absen (" + data.detailAbsen.hari + "x)" : "Pot. Tdk Hadir";
-          txt += padRow(labelAbs, "-Rp " + data.komponen.tidakHadir.toLocaleString('id-ID'));
-        }
-
-        txt += BOLD_ON + DOUBLE_HEIGHT_ON + padRow("Sub Total", "-Rp " + data.subTotalPotongan.toLocaleString('id-ID')) + DOUBLE_HEIGHT_OFF + BOLD_OFF;
-
-        txt += "--------------------------------\n";
-        txt += BOLD_ON + DOUBLE_HEIGHT_ON + padRow("TOTAL THP", "Rp " + data.thp.toLocaleString('id-ID')) + DOUBLE_HEIGHT_OFF + BOLD_OFF;
-
-        if (data.catatan.trim() !== '') {
-          txt += "--------------------------------\n";
-          txt += "Catatan:\n" + data.catatan + "\n";
-        }
-
-        txt += "\n" + ALIGN_RIGHT + BOLD_ON + "Tanda Tangan   \n\n\n";
-        txt += "(" + data.penandatangan + ")   \n" + BOLD_OFF;
-
-        txt += "--------------------------------\n";
-        txt += ALIGN_CENTER + BOLD_ON + "Terima kasih telah bekerja keras\n" + BOLD_OFF;
-        txt += FEED_LINES;
-
-        try {
-          var encoder = new TextEncoder();
-          var initBytes = encoder.encode(INIT + ALIGN_CENTER);
-          var textBytes = encoder.encode(txt);
-
-          var totalLen = initBytes.length + textBytes.length;
-          var finalBuffer = new Uint8Array(totalLen);
-          
-          finalBuffer.set(initBytes, 0);
-          finalBuffer.set(textBytes, initBytes.length);
-
-          var device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: [
-              '000018f0-0000-1000-8000-00805f9b34fb',
-              'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-              '00001101-0000-1000-8000-00805f9b34fb',
-              '0000e7e0-0000-1000-8000-00805f9b34fb',
-              '49535343-fe7d-4ae5-8fa9-9fafd205e455'
-            ]
-          });
-
-          var server = await device.gatt.connect();
-          var services = await server.getPrimaryServices();
-          if (services.length === 0) throw new Error("Service Bluetooth tidak ditemukan pada printer.");
-
-          var targetChar = null;
-          for (var s of services) {
-            var characteristics = await s.getCharacteristics();
-            targetChar = characteristics.find(function(c) { return c.properties.write || c.properties.writeWithoutResponse; });
-            if (targetChar) break;
-          }
-
-          if (!targetChar) throw new Error("Karakteristik Bluetooth tidak mendukung menulis data.");
-
-          var chunkSize = 20;
-          for (var i = 0; i < finalBuffer.length; i += chunkSize) {
-            var chunk = finalBuffer.slice(i, i + chunkSize);
-            if (targetChar.properties.writeWithoutResponse) {
-              await targetChar.writeValueWithoutResponse(chunk);
-            } else {
-              await targetChar.writeValue(chunk);
-            }
-            await new Promise(function(resolve) { setTimeout(resolve, 25); });
-          }
-
-          alert("Struk Slip Gaji berhasil dicetak!");
-
-        } catch (err) {
-          console.error(err);
-          alert("Peringatan Bluetooth: " + err.message);
-        }
-      }
-
-      document.getElementById('btnCetakThermal').addEventListener('click', eksekusiCetakBluetooth);
-
-      function shareWABusiness() {
-        var data = getDataForm();
-        var text = '*' + data.outlet.toUpperCase() + '*\nHead Office : WA 08989671000\nJalan Setia Budi Timur No 62\nMadiun 63118\n\n*SLIP GAJI*\n----------------------------------\n';
-        text += 'Nama: *' + data.nama + '*\nPeriode: ' + data.periode + '\n\n*Rincian Gaji:*\n';
-
-        if (data.komponen.gajiPokok !== null) text += '• Gaji Pokok: Rp ' + data.komponen.gajiPokok.toLocaleString('id-ID') + '\n';
-        if (data.komponen.bonus !== null) text += '• Bonus: Rp ' + data.komponen.bonus.toLocaleString('id-ID') + '\n';
-        if (data.komponen.insentif !== null) text += '• Insentif: Rp ' + data.komponen.insentif.toLocaleString('id-ID') + '\n';
-        text += '• *Sub Total: Rp ' + data.subTotal.toLocaleString('id-ID') + '*\n\n';
-
-        if (data.komponen.pinjaman !== null) text += '• Pot. Pinjaman: -Rp ' + data.komponen.pinjaman.toLocaleString('id-ID') + '\n';
-        if (data.komponen.tidakHadir !== null) {
-          var labelWAAbsen = data.detailAbsen.hari > 0 ? 'Pot. Absen (' + data.detailAbsen.hari + 'x)' : 'Pot. Tdk Hadir';
-          text += '• ' + labelWAAbsen + ': -Rp ' + data.komponen.tidakHadir.toLocaleString('id-ID') + '\n';
-        }
-        text += '• *Sub Total: -Rp ' + data.subTotalPotongan.toLocaleString('id-ID') + '*\n';
-
-        text += '----------------------------------\n*TOTAL THP: Rp ' + data.thp.toLocaleString('id-ID') + '*\n';
-
-        if (data.catatan.trim() !== '') {
-          text += '\n*Catatan:* _' + data.catatan + '_\n';
-        }
-
-        text += '\nPenandatangan: *' + data.penandatangan + '*';
-        text += '\n\nTerima kasih telah bekerja keras';
-
-        var url = 'whatsapp://send?text=' + encodeURIComponent(text);
-        window.open(url, '_blank');
-      }
-
-      document.getElementById('btnWABusiness').addEventListener('click', shareWABusiness);
-
-      document.getElementById('btnBackup').addEventListener('click', function() {
-        var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dbGaji, null, 2));
-        var downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", "Backup_SlipGaji_" + Date.now() + ".json");
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-      });
-
-      document.getElementById('inputRestore').addEventListener('change', function(e) {
-        var file = e.target.files[0];
-        if (file) {
-          var reader = new FileReader();
-          reader.onload = function(evt) {
-            try {
-              var importedData = JSON.parse(evt.target.result);
-              if (Array.isArray(importedData)) {
-                dbGaji = importedData;
-                localStorage.setItem('db_slip_gaji', JSON.stringify(dbGaji));
-                renderRiwayat();
-                alert('Database berhasil di-restore!');
-              } else {
-                alert('Format file JSON tidak valid.');
-              }
-            } catch (err) {
-              alert('Gagal membaca file backup.');
-            }
-          };
-          reader.readAsText(file);
-        }
-      });
-
-    });
-  </script>
+    </script>
 </body>
 </html>
