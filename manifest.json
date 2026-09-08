@@ -1,6 +1,6 @@
 {
-  "name": "Aplikasi Kasir & Struk PWA",
-  "short_name": "KasirPWA",
+  "name": "Laundry Land Slip Gaji",
+  "short_name": "LaundryLand",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
