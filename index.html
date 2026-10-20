@@ -114,6 +114,10 @@ body{display:flex;justify-content:center;min-height:100vh}
   <link rel="manifest" href="manifest.json">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.min.js"></script>
+  <script src="./supabase-laundry.js"></script>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = "https://zfyjcaklaithzykkdrne.supabase.co";
     const SUPABASE_KEY = "sb_publishable_xnLqevbuQVG_U6XDATKSHw_nBBZs161";
@@ -4755,7 +4759,22 @@ function printThermalWindowDirect(notaId){
     const thermalHTML=typeof generateThermalHTML==='function'?generateThermalHTML(nota,pel,setting,outletNama):'';
     const w=window.open('','_blank','width=320,height=600'); if(!w)return;
     const logoSize = Math.max(20,Math.min(200,parseInt(setting.logoSize,10)||36));
-    const htmlContent = '<html><head><title>Thermal - '+outletNama+'</title><style>@media print{body{width:58mm;margin:0} @page{margin:0;size:58mm auto}} body{width:58mm;margin:0 auto;font-family:Arial,sans-serif;background:white} .thermal-wrap{width:58mm;max-width:58mm;margin:0 auto;padding:6px;box-sizing:border-box} img{max-width:'+logoSize+'px;max-height:'+logoSize+'px;display:block;margin:0 auto}</style></head><body><div class="thermal-wrap">'+thermalHTML+'</div><scr'+'ipt>function waitForImages(){const imgs=document.images;let loaded=0;if(imgs.length===0){setTimeout(function(){window.print();},600);return;}for(let i=0;i<imgs.length;i++){if(imgs[i].complete) loaded++; else imgs[i].onload=imgs[i].onerror=function(){loaded++; if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}};} if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}} setTimeout(waitForImages,400);</scr'+'ipt></body></html>';
+    const htmlContent = '<html><head><title>Thermal - '+outletNama+'</title><style>@media print{body{width:58mm;margin:0} @page{margin:0;size:58mm auto}} body{width:58mm;margin:0 auto;font-family:Arial,sans-serif;background:white} .thermal-wrap{width:58mm;max-width:58mm;margin:0 auto;padding:6px;box-sizing:border-box} img{max-width:'+logoSize+'px;max-height:'+logoSize+'px;display:block;margin:0 auto}</style></head><body><div class="thermal-wrap">'+thermalHTML+'</div><scr'+'ipt>function waitForImages(){const imgs=document.images;let loaded=0;if(imgs.length===0){setTimeout(function(){window.print();},600);return;}for(let i=0;i<imgs.length;i++){if(imgs[i].complete) loaded++; else imgs[i].onload=imgs[i].onerror=function(){loaded++; if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}};} if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}} setTimeout(waitForImages,400);</scr'+'ipt>
+<script>
+// Auto load dari Supabase saat start (pola WA parser)
+window.addEventListener('load', ()=>{
+  setTimeout(async ()=>{
+    if(window.LaundrySupabase){
+      const r = await window.LaundrySupabase.load(true);
+      if(r && r.imported>0 && typeof renderAll==='function'){
+        try{ renderAll(); }catch(e){}
+      }
+    }
+  }, 2000);
+});
+</script>
+
+</body></html>';
     w.document.write(htmlContent);
     w.document.close();
   }catch(e){logError(e)}
@@ -4859,126 +4878,35 @@ function doDelete(){try{
   if(type==='nota'){ DB.notas=DB.notas.filter(n=>n.id!==id); }
   saveDB(); closeModal('modalConfirmDelete'); pendingDelete=null; renderAll();
 }catch(e){logError(e);}}
-async function backupOnline(){try{
-  const seen={}; const unique=[];
-  DB.notas.forEach(n=>{if(!seen[n.no_nota]){seen[n.no_nota]=true; unique.push(n);}});
-  DB.notas=unique; saveDB();
+async async function backupOnline(){try{
   const status=document.getElementById('onlineStatus');
   if(status){status.textContent='SYNC...'; status.style.background='#f59e0b';}
   
-  if(!supa){
-    alert('Supabase client belum siap - cek internet');
+  // Dedup lokal dulu (pola WA parser)
+  try{
+    const seen={}; const unique=[];
+    DB.notas.forEach(n=>{if(!seen[n.no_nota]){seen[n.no_nota]=true; unique.push(n);}});
+    if(unique.length!==DB.notas.length){ DB.notas=unique; saveDB(); }
+  }catch(e){}
+
+  if(!window.LaundrySupabase){
+    alert('Supabase module belum siap - refresh');
     if(status){status.textContent=navigator.onLine?'ONLINE':'OFFLINE'; status.style.background=navigator.onLine?'#10b981':'#ef4444';}
     return;
   }
-  
-  let totalSynced = 0;
-  let errors = [];
-  
-  // Helper upsert
-  async function syncTable(tableName, dataArray, mapFn){
-    if(!dataArray || dataArray.length===0) return 0;
-    try{
-      const payload = dataArray.map(mapFn).filter(Boolean);
-      if(payload.length===0) return 0;
-      // Supabase upsert in batches of 100
-      for(let i=0;i<payload.length;i+=100){
-        const batch = payload.slice(i,i+100);
-        const { error } = await supa.from(tableName).upsert(batch, { onConflict: 'id' });
-        if(error) throw error;
-      }
-      return payload.length;
-    }catch(e){
-      console.error('Sync error '+tableName, e);
-      errors.push(tableName+': '+e.message);
-      return 0;
-    }
-  }
-  
-  // Sync outlets
-  totalSynced += await syncTable('outlets', DB.outlets, o=>({
-    id: o.id,
-    nama: o.nama,
-    alamat: o.alamat||'',
-    aktif: !!o.aktif,
-    last_modified: o.last_modified||Date.now()
-  }));
-  
-  // Sync karyawans
-  totalSynced += await syncTable('karyawans', DB.karyawans, k=>({
-    id: k.id,
-    nama: k.nama,
-    pin: k.pin,
-    level: k.level,
-    outlet_id: k.outlet_id,
-    lintas: !!k.lintas,
-    last_modified: k.last_modified||Date.now()
-  }));
-  
-  // Sync pelanggans
-  totalSynced += await syncTable('pelanggans', DB.pelanggans, p=>({
-    id: p.id,
-    nama: p.nama,
-    nohp: p.nohp||'',
-    alamat: p.alamat||'',
-    deposito: p.deposito||0,
-    outlet_id: p.outlet_id,
-    created_at: p.created_at||Date.now(),
-    last_modified: p.last_modified||Date.now()
-  }));
-  
-  // Sync layanans
-  totalSynced += await syncTable('layanans', DB.layanans, l=>({
-    id: l.id,
-    kode: l.kode,
-    nama: l.nama,
-    harga: l.harga||0,
-    satuan: l.satuan||'Kg',
-    min_qty: l.min_qty||1,
-    estimasi_jenis: l.estimasi_jenis||'Hari',
-    estimasi_nilai: l.estimasi_nilai||1,
-    last_modified: l.last_modified||Date.now()
-  }));
-  
-  // Sync notas (pakai jsonb untuk items)
-  totalSynced += await syncTable('notas', DB.notas, n=>({
-    id: n.id,
-    no_nota: n.no_nota,
-    tanggal: n.tanggal||Date.now(),
-    pelanggan_id: n.pelanggan_id,
-    jumlah: n.jumlah||0,
-    outlet_id: n.outlet_id,
-    status: n.status||'Antrian',
-    statusBayar: n.statusBayar||'Belum Lunas',
-    metode: n.metode||'Tunai',
-    items: n.items||[],
-    estimasi: n.estimasi||Date.now(),
-    last_modified: n.last_modified||Date.now()
-  }));
-  
-  // Sync pengeluarans
-  if(DB.pengeluarans){
-    totalSynced += await syncTable('pengeluarans', DB.pengeluarans, p=>({
-      id: p.id,
-      kategori: p.kategori||'',
-      keterangan: p.keterangan||'',
-      nominal: p.nominal||0,
-      tanggal: p.tanggal||Date.now(),
-      outlet_id: p.outlet_id||'',
-      last_modified: p.last_modified||Date.now()
-    }));
-  }
-  
-  if(status){status.textContent='SYNC OK'; status.style.background='#10b981';}
-  
-  if(errors.length>0){
-    alert('Backup sebagian berhasil: '+totalSynced+' data\nError: '+errors.join('\n')+'\n\nCek Table Editor - tabel yang belum ada harus dibuat dulu (lihat file supabase-setup.sql)');
+
+  const res = await window.LaundrySupabase.sync();
+  if(res.ok){
+    if(status){status.textContent='SYNC OK'; status.style.background='#10b981';}
+    alert('Backup Online Berhasil! '+ (DB.notas.length)+' nota, '+(DB.pelanggans.length)+' pelanggan -> Supabase laundry_backup (pola WA parser)');
+    // trigger event kaya di parser WA
+    window.dispatchEvent(new Event('laundry-updated'));
   } else {
-    alert('Backup Online Berhasil! Anti dobel OK - '+DB.notas.length+' nota, total '+totalSynced+' record ke Supabase');
+    if(status){status.textContent='SYNC FAIL'; status.style.background='#ef4444';}
+    alert('Gagal backup: '+(res.error||res.reason||'unknown')+'\nCek SQL laundry_backup sudah di-run belum');
   }
-  
   setTimeout(()=>{const st=document.getElementById('onlineStatus'); if(st){const isOn=navigator.onLine; st.textContent=isOn?'ONLINE':'OFFLINE'; st.style.background=isOn?'#10b981':'#ef4444';}},2500);
-}catch(e){console.error('backupOnline real error', e); alert('Gagal backup: '+e.message); const st=document.getElementById('onlineStatus'); if(st){st.textContent='ERROR'; st.style.background='#ef4444';}}}
+}catch(e){console.error('backupOnline', e); alert('Gagal backup: '+e.message);}}
 function navigate(page){try{
   if(!currentUser && (typeof LOGIN_PAUSED==='undefined' || !LOGIN_PAUSED)){
     const pm=document.getElementById('modalPin'); if(pm) pm.classList.add('active');
@@ -7203,6 +7131,21 @@ window.addEventListener('offline', () => {
   updateOnlineStatus();
 });
 window.addEventListener('load', ()=>{ setTimeout(updateOnlineStatus, 500); });
+</script>
+
+
+<script>
+// Auto load dari Supabase saat start (pola WA parser)
+window.addEventListener('load', ()=>{
+  setTimeout(async ()=>{
+    if(window.LaundrySupabase){
+      const r = await window.LaundrySupabase.load(true);
+      if(r && r.imported>0 && typeof renderAll==='function'){
+        try{ renderAll(); }catch(e){}
+      }
+    }
+  }, 2000);
+});
 </script>
 
 </body>
