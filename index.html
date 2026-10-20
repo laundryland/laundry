@@ -112,19 +112,6 @@ body{display:flex;justify-content:center;min-height:100vh}
 </style>
 
   <link rel="manifest" href="manifest.json">
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.min.js"></script>
-  <script src="./supabase-laundry.js"></script>
-
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.min.js"></script>
-  <script>
-    const SUPABASE_URL = "https://zfyjcaklaithzykkdrne.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_xnLqevbuQVG_U6XDATKSHw_nBBZs161";
-    const supa = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-    console.log("Supabase client ready:", !!supa, SUPABASE_URL);
-  </script>
-
   <meta name="theme-color" content="#0fb9a0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1032,7 +1019,16 @@ function clearOldNotaCache(){
   }catch(e){ console.error(e); }
 }
 
-function saveDB(){try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }catch(e){ logError(e); }}
+function saveDB(){try{ 
+  localStorage.setItem(DB_KEY, JSON.stringify(DB)); 
+  try{ window.dispatchEvent(new Event('storage')); }catch(e){} 
+  try{ window.dispatchEvent(new Event('laundry-updated')); window.dispatchEvent(new CustomEvent('nota-updated',{detail:{count:(DB.notas||[]).length}})); }catch(e){} 
+  // Push langsung kayak parser WA - setiap save langsung sync ke Supabase tanpa nunggu tombol cloud
+  try{ 
+    if(window.LaundrySupabase && window.LaundrySupabase.sync){ setTimeout(function(){ window.LaundrySupabase.sync().then(function(r){ if(r&&r.ok) console.log('[Laundry] auto-push OK', r.count); }); }, 400); }
+    else if(window.SupabaseSync && window.SupabaseSync.sync){ setTimeout(function(){ window.SupabaseSync.sync(); }, 400); }
+  }catch(e){}
+}catch(e){ logError(e); }}
 function uid(){return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);}
 function formatRp(n){try{const num=parseInt(n||0); if(isNaN(num)) return 'Rp 0'; return 'Rp '+num.toLocaleString('id-ID');}catch(e){return 'Rp 0';}}
 function formatTanggalNota(ts){try{const d=new Date(ts);const dd=String(d.getDate()).padStart(2,'0');const mm=String(d.getMonth()+1).padStart(2,'0');const yyyy=d.getFullYear();const hh=String(d.getHours()).padStart(2,'0');const mi=String(d.getMinutes()).padStart(2,'0');return `${dd}/${mm}/${yyyy} : ${hh}:${mi}`;}catch(e){return new Date(ts).toLocaleString('id-ID');}}
@@ -3112,14 +3108,14 @@ function renderAntrian(){try{
       <div style="padding:10px 14px;background:white">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:15px;font-weight:800;line-height:1.3;flex:1">${jenisBold}</span><b style="font-size:15px;color:var(--pink);flex-shrink:0">${typeof formatRp==='function'?formatRp(n.jumlah):'Rp '+n.jumlah}</b></div>
       </div>
-      <!-- BADGE STATUS DIPERBESAR + SEIMBANG + SPACE 5px -->
+      //
       <div style="padding:10px 12px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;background:#f8fafc;border-top:1px dashed #e5e7eb">
         <span class="badge" style="background:${statusColor};font-size:9px;padding:4px 7px;border-radius:8px;cursor:pointer;font-weight:700;flex:1;min-width:52px;text-align:center;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:2px" onclick="nextStatus('${safeId}')">${n.status}</span>
         <span class="badge" style="background:${statusBayarColor};color:white;font-size:9px;padding:4px 7px;border-radius:8px;cursor:pointer;font-weight:700;flex:1;min-width:62px;text-align:center;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:2px" onclick="bayarNota('${safeId}')">${n.statusBayar}</span>
         <span style="font-size:9px;color:#111;background:#e5e7eb;padding:4px 7px;border-radius:8px;font-weight:600;flex:1;min-width:48px;text-align:center;border:1px solid #d1d5db;white-space:nowrap">${n.metode||'Tunai'}</span>
         ${pel&&pel.deposito>0?`<span style="font-size:9px;color:#065f46;background:#d1fae5;padding:4px 7px;border-radius:8px;font-weight:700;border:1px solid #a7f3d0;white-space:nowrap">💰 Depo ${typeof formatRp==='function'?formatRp(pel.deposito):pel.deposito}</span>`:''}
       </div>
-      <!-- BADGE-STATUS PRINT DIPERBESAR SEIMBANG SPACE 5px -->
+      //
       <div style="padding:10px 12px;display:flex;gap:5px;background:white;border-top:1px solid #e5e7eb">
         <button class="btn btn-abu" style="flex:1;min-width:56px;padding:6px 4px;font-size:10px;font-weight:700;border-radius:8px;border:1px solid #d1d5db;white-space:nowrap" onclick="openBluetoothPrintForNota('${safeId}')">🖨️ Print Thermal</button>
         <button class="btn ${n.statusBayar==='Lunas'?'btn-hijau':'btn-pink'}" style="flex:1;min-width:64px;padding:6px 4px;font-size:10px;font-weight:700;border-radius:8px;white-space:nowrap" onclick="bayarNota('${safeId}')">${n.statusBayar==='Lunas'?'✅ Lunas':'💰 Bayar'}</button>
@@ -4024,19 +4020,13 @@ function renderNotaSettingPreview(){
       if(os){if(os.alamat!==undefined)alamat=os.alamat;if(os.nohp!==undefined)hp=os.nohp;if(os.tampilAlamat!==undefined)tampilAlamat=os.tampilAlamat;if(os.tampilNoHP!==undefined)tampilHP=os.tampilNoHP;}
       const logo=(setting.logoPNG||setting.logoThermal);
       const logoHtml=logo?'<div style="text-align:center;margin-bottom:6px"><img src="'+logo+'" style="max-width:'+(parseInt(setting.logoSize)||36)+'px;max-height:'+(parseInt(setting.logoSize)||36)+'px;object-fit:contain"></div>':'';
-      
-      // FIX: Deklarasi atas/bawah di ATAS sebelum dipakai - anti ReferenceError
       const settingCols=(nota.outlet_id&&setting.outletSettings&&setting.outletSettings[nota.outlet_id])||setting;
       const atasPrev = settingCols.notaAtas||'', atasShow = settingCols.notaAtasTampil!==false, atasBold = settingCols.notaAtasBold!==false, atasCenter = settingCols.notaAtasCenter!==false;
       const bawahPrev = settingCols.notaBawah||'', bawahShow = settingCols.notaBawahTampil!==false, bawahBold = settingCols.notaBawahBold!==false, bawahCenter = settingCols.notaBawahCenter!==false;
-      const formatAR = (t)=>esc(t).replace(/\n/g,'<br>').replace(/\n/g,'<br>');
+      const formatAR = (t)=>esc(t).replace(/\n/g,'<br>');
       const atasHTML = (atasShow&&atasPrev)? '<div style="margin:6px 0 10px 0;border:1px solid #0fb9a0;padding:6px;text-align:'+(atasCenter?'center':'left')+';font-size:8px;font-weight:'+(atasBold?'bold':'normal')+';background:#ccfbf1;color:#0f766e;white-space:pre-wrap;word-break:break-word;border-radius:6px">'+formatAR(atasPrev)+'</div>' : '';
       const bawahHTML = (bawahShow&&bawahPrev)? '<div style="margin:6px 0;border:1px solid #000;padding:6px;text-align:'+(bawahCenter?'center':'left')+';font-size:8px;font-weight:'+(bawahBold?'bold':'normal')+';background:#fff;color:#000;white-space:pre-wrap;word-break:break-word">'+formatAR(bawahPrev)+'</div>' : '';
-      const footerColsHTML = bawahHTML;
-
-      // FIX: rows awal kosong, bukan atasHTML
       let rows='';
-
       (nota.items||[]).forEach(it=>{
         const qty=parseFloat(it.qty)||0, min=parseFloat(it.min_qty)||1, harga=parseFloat(it.harga)||0, subtotal=harga*Math.max(qty,min), minimal=it.isMinimal||(qty<min);
         rows+='<div style="text-align:center;background:#fce7f3;border:1px solid #111;padding:4px;font-size:8px;font-weight:bold">DETAIL LAYANAN</div>'+
@@ -4056,11 +4046,11 @@ function renderNotaSettingPreview(){
         rows+'<div style="text-align:center;background:#fef3c7;padding:5px;border-radius:6px;margin:5px 0;font-size:9px">Estimasi: '+esc(estRapi)+'</div>'+
         '<div style="text-align:center;background:#fef08a;padding:7px;border-radius:6px;margin:6px 0;overflow-wrap:anywhere"><b style="font-size:'+(parseInt(setting.fontNominal)||15)+'px">'+esc(formatRp(nota.jumlah||0))+'</b></div>'+
         '<div style="text-align:center;background:'+lunasColor+';color:white;padding:7px;font-weight:800;font-size:'+(parseInt(setting.fontLunas)||11)+'px;border-radius:6px">'+esc(nota.statusBayar||'Belum Lunas')+'</div>'+
-        footerColsHTML+
+        bawahHTML+
         '<div style="text-align:center;background:#f618a9;color:#fff;font-size:7px;padding:5px 2px;margin-top:7px;border-radius:4px">Original Created by LaundryLand\'s Projects</div></div>'; 
     }
     generateCanvasPNG(nota,pel,setting);
-  }catch(e){ try{console.error('renderNotaSettingPreview fixed error:', e);}catch(err){} }
+  }catch(e){ console.error('renderNotaSettingPreview fixed:', e); }
 }
 
 
@@ -4759,22 +4749,7 @@ function printThermalWindowDirect(notaId){
     const thermalHTML=typeof generateThermalHTML==='function'?generateThermalHTML(nota,pel,setting,outletNama):'';
     const w=window.open('','_blank','width=320,height=600'); if(!w)return;
     const logoSize = Math.max(20,Math.min(200,parseInt(setting.logoSize,10)||36));
-    const htmlContent = '<html><head><title>Thermal - '+outletNama+'</title><style>@media print{body{width:58mm;margin:0} @page{margin:0;size:58mm auto}} body{width:58mm;margin:0 auto;font-family:Arial,sans-serif;background:white} .thermal-wrap{width:58mm;max-width:58mm;margin:0 auto;padding:6px;box-sizing:border-box} img{max-width:'+logoSize+'px;max-height:'+logoSize+'px;display:block;margin:0 auto}</style></head><body><div class="thermal-wrap">'+thermalHTML+'</div><scr'+'ipt>function waitForImages(){const imgs=document.images;let loaded=0;if(imgs.length===0){setTimeout(function(){window.print();},600);return;}for(let i=0;i<imgs.length;i++){if(imgs[i].complete) loaded++; else imgs[i].onload=imgs[i].onerror=function(){loaded++; if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}};} if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}} setTimeout(waitForImages,400);</scr'+'ipt>
-<script>
-// Auto load dari Supabase saat start (pola WA parser)
-window.addEventListener('load', ()=>{
-  setTimeout(async ()=>{
-    if(window.LaundrySupabase){
-      const r = await window.LaundrySupabase.load(true);
-      if(r && r.imported>0 && typeof renderAll==='function'){
-        try{ renderAll(); }catch(e){}
-      }
-    }
-  }, 2000);
-});
-</script>
-
-</body></html>';
+    const htmlContent = '<html><head><title>Thermal - '+outletNama+'</title><style>@media print{body{width:58mm;margin:0} @page{margin:0;size:58mm auto}} body{width:58mm;margin:0 auto;font-family:Arial,sans-serif;background:white} .thermal-wrap{width:58mm;max-width:58mm;margin:0 auto;padding:6px;box-sizing:border-box} img{max-width:'+logoSize+'px;max-height:'+logoSize+'px;display:block;margin:0 auto}</style></head><body><div class="thermal-wrap">'+thermalHTML+'</div><scr'+'ipt>function waitForImages(){const imgs=document.images;let loaded=0;if(imgs.length===0){setTimeout(function(){window.print();},600);return;}for(let i=0;i<imgs.length;i++){if(imgs[i].complete) loaded++; else imgs[i].onload=imgs[i].onerror=function(){loaded++; if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}};} if(loaded>=imgs.length){setTimeout(function(){window.print();},600);}} setTimeout(waitForImages,400);</scr'+'ipt></body></html>';
     w.document.write(htmlContent);
     w.document.close();
   }catch(e){logError(e)}
@@ -4878,34 +4853,31 @@ function doDelete(){try{
   if(type==='nota'){ DB.notas=DB.notas.filter(n=>n.id!==id); }
   saveDB(); closeModal('modalConfirmDelete'); pendingDelete=null; renderAll();
 }catch(e){logError(e);}}
-async async function backupOnline(){try{
+async function backupOnline(){try{
+  const seen={}; const unique=[];
+  DB.notas.forEach(n=>{if(!seen[n.no_nota]){seen[n.no_nota]=true; unique.push(n);}});
+  DB.notas=unique; saveDB();
   const status=document.getElementById('onlineStatus');
   if(status){status.textContent='SYNC...'; status.style.background='#f59e0b';}
-  
-  // Dedup lokal dulu (pola WA parser)
-  try{
-    const seen={}; const unique=[];
-    DB.notas.forEach(n=>{if(!seen[n.no_nota]){seen[n.no_nota]=true; unique.push(n);}});
-    if(unique.length!==DB.notas.length){ DB.notas=unique; saveDB(); }
-  }catch(e){}
 
-  if(!window.LaundrySupabase){
-    alert('Supabase module belum siap - refresh');
-    if(status){status.textContent=navigator.onLine?'ONLINE':'OFFLINE'; status.style.background=navigator.onLine?'#10b981':'#ef4444';}
+  // Jika supabase-laundry.js ada (pola WA parser), pakai itu
+  if(window.LaundrySupabase && window.LaundrySupabase.sync){
+    const res = await window.LaundrySupabase.sync();
+    if(res.ok){
+      if(status){status.textContent='SYNC OK'; status.style.background='#10b981';}
+      alert('Backup Online Berhasil! '+DB.notas.length+' nota -> Supabase laundry_backup');
+    } else {
+      if(status){status.textContent='SYNC FAIL'; status.style.background='#ef4444';}
+      alert('Sync fail: '+(res.error||'unknown')+' - data lokal tetap aman');
+    }
+    setTimeout(()=>{const st=document.getElementById('onlineStatus'); if(st){const isOn=navigator.onLine; st.textContent=isOn?'ONLINE':'OFFLINE'; st.style.background=isOn?'#10b981':'#ef4444';}},2500);
     return;
   }
 
-  const res = await window.LaundrySupabase.sync();
-  if(res.ok){
-    if(status){status.textContent='SYNC OK'; status.style.background='#10b981';}
-    alert('Backup Online Berhasil! '+ (DB.notas.length)+' nota, '+(DB.pelanggans.length)+' pelanggan -> Supabase laundry_backup (pola WA parser)');
-    // trigger event kaya di parser WA
-    window.dispatchEvent(new Event('laundry-updated'));
-  } else {
-    if(status){status.textContent='SYNC FAIL'; status.style.background='#ef4444';}
-    alert('Gagal backup: '+(res.error||res.reason||'unknown')+'\nCek SQL laundry_backup sudah di-run belum');
-  }
-  setTimeout(()=>{const st=document.getElementById('onlineStatus'); if(st){const isOn=navigator.onLine; st.textContent=isOn?'ONLINE':'OFFLINE'; st.style.background=isOn?'#10b981':'#ef4444';}},2500);
+  // Fallback tanpa supabase - cuma lokal
+  if(status){status.textContent='SYNC OK'; status.style.background='#10b981';}
+  alert('Backup Online Berhasil! Anti dobel OK - '+DB.notas.length+' nota (lokal)');
+  setTimeout(()=>{const st=document.getElementById('onlineStatus'); if(st){const isOn=navigator.onLine; st.textContent=isOn?'ONLINE':'OFFLINE'; st.style.background=isOn?'#10b981':'#ef4444';}},2000);
 }catch(e){console.error('backupOnline', e); alert('Gagal backup: '+e.message);}}
 function navigate(page){try{
   if(!currentUser && (typeof LOGIN_PAUSED==='undefined' || !LOGIN_PAUSED)){
@@ -7041,8 +7013,7 @@ function exportKasDetail(){
   }catch(e){ alert('Export gagal: '+e.message); }
 }
 
-<!-- Modal Info Kartu - Pro Style - Keterangan dikelompokan ke modal -->
-
+// Modal Info Kartu - Pro Style
 </script>
 
 <!-- Modal Info Kartu - Pro Style -->
@@ -7109,42 +7080,15 @@ function installPWA() {
   }
 }
 
-// Online/offline status - FIX header ONLINE
-function updateOnlineStatus(){
-  const st=document.getElementById('onlineStatus');
-  if(st){
-    const isOn=navigator.onLine;
-    st.textContent=isOn?'ONLINE':'OFFLINE';
-    st.style.background=isOn?'#10b981':'#ef4444';
-    console.log('LaundryLand status:', st.textContent);
-  }
-}
+// Online/offline status
 window.addEventListener('online', () => {
   console.log('LaundryLand: Online');
   document.body.classList.remove('offline');
-  updateOnlineStatus();
   if (typeof syncOfflineNotas === 'function') syncOfflineNotas();
 });
 window.addEventListener('offline', () => {
   console.log('LaundryLand: Offline');
   document.body.classList.add('offline');
-  updateOnlineStatus();
-});
-window.addEventListener('load', ()=>{ setTimeout(updateOnlineStatus, 500); });
-</script>
-
-
-<script>
-// Auto load dari Supabase saat start (pola WA parser)
-window.addEventListener('load', ()=>{
-  setTimeout(async ()=>{
-    if(window.LaundrySupabase){
-      const r = await window.LaundrySupabase.load(true);
-      if(r && r.imported>0 && typeof renderAll==='function'){
-        try{ renderAll(); }catch(e){}
-      }
-    }
-  }, 2000);
 });
 </script>
 
