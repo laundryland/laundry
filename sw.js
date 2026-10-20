@@ -1,6 +1,5 @@
-// LaundryLand PWA Service Worker - Offline First
-const CACHE_NAME = 'laundryland-v1.0.0';
-const urlsToCache = [
+const CACHE_NAME = 'laundry-v3-supabase-real';
+const ASSETS = [
   './',
   './index.html',
   './manifest.json',
@@ -11,111 +10,39 @@ const urlsToCache = [
   './icon-512.png'
 ];
 
-// Install - cache assets
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('LaundryLand SW: Caching app shell');
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => self.skipWaiting())
+self.addEventListener('install', (e) => {
+  console.log('[SW] Install v3');
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(()=>self.skipWaiting())
   );
 });
 
-// Activate - clean old caches
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('LaundryLand SW: Deleting old cache', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+self.addEventListener('activate', (e) => {
+  console.log('[SW] Activate v3 - cleaning old');
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
   );
 });
 
-// Fetch - Network first, fallback to cache (for API), Cache first for assets
-self.addEventListener('fetch', event => {
-  // Skip non-GET requests and chrome-extension
-  if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
+self.addEventListener('fetch', (e) => {
+  // Jangan cache supabase - biar online real
+  if (e.request.url.includes('supabase.co')) {
     return;
   }
-  
-  // For Supabase / API calls - network first
-  if (event.request.url.includes('supabase.co') || event.request.url.includes('/rest/') || event.request.url.includes('/auth/')) {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // Clone and cache successful API responses
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
-          return response;
-        })
-        .catch(() => {
-          return caches.match(event.request);
-        })
-    );
-    return;
-  }
-
-  // For app shell - cache first, fallback to network
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
+  e.respondWith(
+    caches.match(e.request).then(res => {
+      return res || fetch(e.request).then(fetchRes => {
+        // cache html/css/js saja
+        if(e.request.method==='GET' && e.request.url.startsWith(self.location.origin)){
+          caches.open(CACHE_NAME).then(cache=>cache.put(e.request, fetchRes.clone()));
         }
-        return fetch(event.request)
-          .then(response => {
-            // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-            return response;
-          });
-      })
-  );
-});
-
-// Background sync for offline nota
-self.addEventListener('sync', event => {
-  if (event.tag === 'sync-notas') {
-    event.waitUntil(syncNotas());
-  }
-});
-
-async function syncNotas() {
-  console.log('LaundryLand SW: Syncing offline notas');
-  // Will be handled by main app when online
-}
-
-// Push notification (for future)
-self.addEventListener('push', event => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'LaundryLand';
-  const options = {
-    body: data.body || 'Notifikasi baru dari LaundryLand',
-    icon: './icon-192.png',
-    badge: './icon-64.png',
-    data: data.url || './'
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data)
+        return fetchRes;
+      }).catch(()=> {
+        // fallback offline cuma untuk navigasi
+        if(e.request.mode==='navigate'){
+          return caches.match('./index.html');
+        }
+      });
+    })
   );
 });

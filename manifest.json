@@ -1,83 +1,37 @@
 {
-  "name": "LaundryLand - Manajemen Laundry",
-  "short_name": "LaundryLand",
-  "description": "Aplikasi manajemen laundry lengkap: nota thermal, antrian, pembayaran, deposito, laporan, PWA offline",
-  "start_url": "./index.html",
+  "background_color": "#f8fafc",
+  "description": "LaundryLand POS - Madiun - Supabase Real Sync",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#0fb9a0",
-  "scope": "./",
   "icons": [
     {
-      "src": "icon-32.png",
       "sizes": "32x32",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "icon-32.png",
+      "type": "image/png"
     },
     {
-      "src": "icon-64.png",
       "sizes": "64x64",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "icon-64.png",
+      "type": "image/png"
     },
     {
-      "src": "icon-180.png",
       "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "icon-180.png",
+      "type": "image/png"
     },
     {
-      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "icon-192.png",
+      "type": "image/png"
     },
     {
-      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "icon-512.png",
+      "type": "image/png"
     }
   ],
-  "shortcuts": [
-    {
-      "name": "Buat Nota",
-      "url": "./index.html#buatnota",
-      "description": "Buat nota laundry baru",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Antrian",
-      "url": "./index.html#antrian",
-      "description": "Lihat antrian nota",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Laporan",
-      "url": "./index.html#laporan",
-      "description": "Laporan keuangan",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ],
-  "categories": [
-    "business",
-    "productivity"
-  ],
-  "lang": "id-ID"
+  "name": "LaundryLand Project",
+  "orientation": "portrait",
+  "short_name": "LaundryLand",
+  "start_url": "./index.html",
+  "theme_color": "#0fb9a0"
 }

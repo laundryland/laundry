@@ -112,7 +112,17 @@ body{display:flex;justify-content:center;min-height:100vh}
 </style>
 
   <link rel="manifest" href="manifest.json">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://zfyjcaklaithzykkdrne.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_xnLqevbuQVG_U6XDATKSHw_nBBZs161";
+    const supa = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    console.log("Supabase client ready:", !!supa, SUPABASE_URL);
+  </script>
+
   <meta name="theme-color" content="#0fb9a0">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="LaundryLand">
@@ -129,7 +139,7 @@ body{display:flex;justify-content:center;min-height:100vh}
 <div id="errorLog"></div>
 <div class="app-shell">
 <div class="header">
-<div class="header-row1" onclick="navigate('setting')"><span>🏪</span><span id="outletName" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Pilih Outlet</span><span id="onlineStatus" style="background:#0a8f7a;color:white;padding:2px 6px;border-radius:6px;font-size:9px;flex-shrink:0">OFFLINE</span></div>
+<div class="header-row1" onclick="navigate('setting')"><span>🏪</span><span id="outletName" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Pilih Outlet</span><span id="onlineStatus" style="background:#10b981;color:white;padding:2px 6px;border-radius:6px;font-size:9px;flex-shrink:0">ONLINE</span></div>
 <div class="header-row2"><span id="userInfo" onclick="confirmLogout()" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="Tap untuk logout / ganti karyawan">Belum Login - Tap untuk Login</span><span style="display:flex;gap:4px;align-items:center"><span id="hariTanggal" style="font-weight:800"></span><span id="jamHeader" style="font-weight:800"></span></span><span style="display:flex;gap:8px;align-items:center"><span id="notifBellOwner" style="position:relative;cursor:pointer;display:none" onclick="openModal('modalNotifikasi');renderNotifikasi()" title="Notifikasi Owner"><span style="font-size:13px">🔔</span><span id="notifBadge" style="position:absolute;top:-6px;right:-8px;background:#ef4444;color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:10px;min-width:14px;text-align:center;display:none">0</span></span><span style="cursor:pointer" onclick="backupOnline()">☁️</span></span></div>
 </div>
 
@@ -4010,7 +4020,18 @@ function renderNotaSettingPreview(){
       if(os){if(os.alamat!==undefined)alamat=os.alamat;if(os.nohp!==undefined)hp=os.nohp;if(os.tampilAlamat!==undefined)tampilAlamat=os.tampilAlamat;if(os.tampilNoHP!==undefined)tampilHP=os.tampilNoHP;}
       const logo=(setting.logoPNG||setting.logoThermal);
       const logoHtml=logo?'<div style="text-align:center;margin-bottom:6px"><img src="'+logo+'" style="max-width:'+(parseInt(setting.logoSize)||36)+'px;max-height:'+(parseInt(setting.logoSize)||36)+'px;object-fit:contain"></div>':'';
-      let rows=atasHTML;
+      
+      // FIX: Deklarasi atas/bawah di ATAS sebelum dipakai - anti ReferenceError
+      const settingCols=(nota.outlet_id&&setting.outletSettings&&setting.outletSettings[nota.outlet_id])||setting;
+      const atasPrev = settingCols.notaAtas||'', atasShow = settingCols.notaAtasTampil!==false, atasBold = settingCols.notaAtasBold!==false, atasCenter = settingCols.notaAtasCenter!==false;
+      const bawahPrev = settingCols.notaBawah||'', bawahShow = settingCols.notaBawahTampil!==false, bawahBold = settingCols.notaBawahBold!==false, bawahCenter = settingCols.notaBawahCenter!==false;
+      const formatAR = (t)=>esc(t).replace(/\n/g,'<br>').replace(/\n/g,'<br>');
+      const atasHTML = (atasShow&&atasPrev)? '<div style="margin:6px 0 10px 0;border:1px solid #0fb9a0;padding:6px;text-align:'+(atasCenter?'center':'left')+';font-size:8px;font-weight:'+(atasBold?'bold':'normal')+';background:#ccfbf1;color:#0f766e;white-space:pre-wrap;word-break:break-word;border-radius:6px">'+formatAR(atasPrev)+'</div>' : '';
+      const bawahHTML = (bawahShow&&bawahPrev)? '<div style="margin:6px 0;border:1px solid #000;padding:6px;text-align:'+(bawahCenter?'center':'left')+';font-size:8px;font-weight:'+(bawahBold?'bold':'normal')+';background:#fff;color:#000;white-space:pre-wrap;word-break:break-word">'+formatAR(bawahPrev)+'</div>' : '';
+      const footerColsHTML = bawahHTML;
+
+      // FIX: rows awal kosong, bukan atasHTML
+      let rows='';
 
       (nota.items||[]).forEach(it=>{
         const qty=parseFloat(it.qty)||0, min=parseFloat(it.min_qty)||1, harga=parseFloat(it.harga)||0, subtotal=harga*Math.max(qty,min), minimal=it.isMinimal||(qty<min);
@@ -4021,27 +4042,21 @@ function renderNotaSettingPreview(){
           '<div style="height:6px"></div>';
       });
       const lunasColor=nota.statusBayar==='Lunas'?'#10b981':'#ef4444';
-      const settingCols=(nota.outlet_id&&setting.outletSettings&&setting.outletSettings[nota.outlet_id])||setting;
-      const atasPrev = settingCols.notaAtas||'', atasShow = settingCols.notaAtasTampil!==false, atasBold = settingCols.notaAtasBold!==false, atasCenter = settingCols.notaAtasCenter!==false;
-      const bawahPrev = settingCols.notaBawah||'', bawahShow = settingCols.notaBawahTampil!==false, bawahBold = settingCols.notaBawahBold!==false, bawahCenter = settingCols.notaBawahCenter!==false;
-      const formatAR = (t)=>esc(t).replace(/\n/g,'<br>');
-      const atasHTML = (atasShow&&atasPrev)? '<div style="margin:6px 0 10px 0;border:1px solid #0fb9a0;padding:6px;text-align:'+(atasCenter?'center':'left')+';font-size:8px;font-weight:'+(atasBold?'bold':'normal')+';background:#ccfbf1;color:#0f766e;white-space:pre-wrap;word-break:break-word;border-radius:6px">'+formatAR(atasPrev)+'</div>' : '';
-      const bawahHTML = (bawahShow&&bawahPrev)? '<div style="margin:6px 0;border:1px solid #000;padding:6px;text-align:'+(bawahCenter?'center':'left')+';font-size:8px;font-weight:'+(bawahBold?'bold':'normal')+';background:#fff;color:#000;white-space:pre-wrap;word-break:break-word">'+formatAR(bawahPrev)+'</div>' : '';
-      const footerColsHTML = bawahHTML;
       pngCard.innerHTML='<div class="nota-png-utama">'+logoHtml+
         '<div class="nota-png-outlet-header"><div class="nama">'+esc(outletNama||'LaundryLand')+'</div>'+
         (tampilAlamat&&alamat?'<div class="alamat">'+esc(alamat)+'</div>':'')+
         (tampilHP&&hp?'<div class="nohp">'+esc(hp)+'</div>':'')+'</div>'+
+        atasHTML+
         '<div style="font-size:8px;text-align:center;font-weight:bold;overflow-wrap:anywhere;margin:5px 0">No Nota: '+esc(nota.no_nota)+'<br>Tanggal/Jam: '+esc(tglRapi)+'</div>'+
         '<hr class="nota-png-divider"><div style="text-align:center;font-size:'+(parseInt(setting.fontNama)||14)+'px;font-weight:800;overflow-wrap:anywhere;margin:5px 0">'+esc((pel&&pel.nama||'NAMA').toUpperCase())+'</div>'+
         rows+'<div style="text-align:center;background:#fef3c7;padding:5px;border-radius:6px;margin:5px 0;font-size:9px">Estimasi: '+esc(estRapi)+'</div>'+
         '<div style="text-align:center;background:#fef08a;padding:7px;border-radius:6px;margin:6px 0;overflow-wrap:anywhere"><b style="font-size:'+(parseInt(setting.fontNominal)||15)+'px">'+esc(formatRp(nota.jumlah||0))+'</b></div>'+
         '<div style="text-align:center;background:'+lunasColor+';color:white;padding:7px;font-weight:800;font-size:'+(parseInt(setting.fontLunas)||11)+'px;border-radius:6px">'+esc(nota.statusBayar||'Belum Lunas')+'</div>'+
         footerColsHTML+
-        '<div style="text-align:center;background:#f618a9;color:#fff;font-size:7px;padding:5px 2px;margin-top:7px;border-radius:4px">Original Created by LaundryLand&#39;s Projects</div></div>'; 
+        '<div style="text-align:center;background:#f618a9;color:#fff;font-size:7px;padding:5px 2px;margin-top:7px;border-radius:4px">Original Created by LaundryLand\'s Projects</div></div>'; 
     }
     generateCanvasPNG(nota,pel,setting);
-  }catch(e){ try{console.error(e);}catch(err){} }
+  }catch(e){ try{console.error('renderNotaSettingPreview fixed error:', e);}catch(err){} }
 }
 
 
@@ -4844,15 +4859,126 @@ function doDelete(){try{
   if(type==='nota'){ DB.notas=DB.notas.filter(n=>n.id!==id); }
   saveDB(); closeModal('modalConfirmDelete'); pendingDelete=null; renderAll();
 }catch(e){logError(e);}}
-function backupOnline(){try{
+async function backupOnline(){try{
   const seen={}; const unique=[];
   DB.notas.forEach(n=>{if(!seen[n.no_nota]){seen[n.no_nota]=true; unique.push(n);}});
   DB.notas=unique; saveDB();
   const status=document.getElementById('onlineStatus');
+  if(status){status.textContent='SYNC...'; status.style.background='#f59e0b';}
+  
+  if(!supa){
+    alert('Supabase client belum siap - cek internet');
+    if(status){status.textContent=navigator.onLine?'ONLINE':'OFFLINE'; status.style.background=navigator.onLine?'#10b981':'#ef4444';}
+    return;
+  }
+  
+  let totalSynced = 0;
+  let errors = [];
+  
+  // Helper upsert
+  async function syncTable(tableName, dataArray, mapFn){
+    if(!dataArray || dataArray.length===0) return 0;
+    try{
+      const payload = dataArray.map(mapFn).filter(Boolean);
+      if(payload.length===0) return 0;
+      // Supabase upsert in batches of 100
+      for(let i=0;i<payload.length;i+=100){
+        const batch = payload.slice(i,i+100);
+        const { error } = await supa.from(tableName).upsert(batch, { onConflict: 'id' });
+        if(error) throw error;
+      }
+      return payload.length;
+    }catch(e){
+      console.error('Sync error '+tableName, e);
+      errors.push(tableName+': '+e.message);
+      return 0;
+    }
+  }
+  
+  // Sync outlets
+  totalSynced += await syncTable('outlets', DB.outlets, o=>({
+    id: o.id,
+    nama: o.nama,
+    alamat: o.alamat||'',
+    aktif: !!o.aktif,
+    last_modified: o.last_modified||Date.now()
+  }));
+  
+  // Sync karyawans
+  totalSynced += await syncTable('karyawans', DB.karyawans, k=>({
+    id: k.id,
+    nama: k.nama,
+    pin: k.pin,
+    level: k.level,
+    outlet_id: k.outlet_id,
+    lintas: !!k.lintas,
+    last_modified: k.last_modified||Date.now()
+  }));
+  
+  // Sync pelanggans
+  totalSynced += await syncTable('pelanggans', DB.pelanggans, p=>({
+    id: p.id,
+    nama: p.nama,
+    nohp: p.nohp||'',
+    alamat: p.alamat||'',
+    deposito: p.deposito||0,
+    outlet_id: p.outlet_id,
+    created_at: p.created_at||Date.now(),
+    last_modified: p.last_modified||Date.now()
+  }));
+  
+  // Sync layanans
+  totalSynced += await syncTable('layanans', DB.layanans, l=>({
+    id: l.id,
+    kode: l.kode,
+    nama: l.nama,
+    harga: l.harga||0,
+    satuan: l.satuan||'Kg',
+    min_qty: l.min_qty||1,
+    estimasi_jenis: l.estimasi_jenis||'Hari',
+    estimasi_nilai: l.estimasi_nilai||1,
+    last_modified: l.last_modified||Date.now()
+  }));
+  
+  // Sync notas (pakai jsonb untuk items)
+  totalSynced += await syncTable('notas', DB.notas, n=>({
+    id: n.id,
+    no_nota: n.no_nota,
+    tanggal: n.tanggal||Date.now(),
+    pelanggan_id: n.pelanggan_id,
+    jumlah: n.jumlah||0,
+    outlet_id: n.outlet_id,
+    status: n.status||'Antrian',
+    statusBayar: n.statusBayar||'Belum Lunas',
+    metode: n.metode||'Tunai',
+    items: n.items||[],
+    estimasi: n.estimasi||Date.now(),
+    last_modified: n.last_modified||Date.now()
+  }));
+  
+  // Sync pengeluarans
+  if(DB.pengeluarans){
+    totalSynced += await syncTable('pengeluarans', DB.pengeluarans, p=>({
+      id: p.id,
+      kategori: p.kategori||'',
+      keterangan: p.keterangan||'',
+      nominal: p.nominal||0,
+      tanggal: p.tanggal||Date.now(),
+      outlet_id: p.outlet_id||'',
+      last_modified: p.last_modified||Date.now()
+    }));
+  }
+  
   if(status){status.textContent='SYNC OK'; status.style.background='#10b981';}
-  alert('Backup Online Berhasil! Anti dobel OK - '+DB.notas.length+' nota');
-  setTimeout(()=>{const st=document.getElementById('onlineStatus'); if(st){st.textContent='OFFLINE'; st.style.background='#0a8f7a';}},2000);
-}catch(e){logError(e);}}
+  
+  if(errors.length>0){
+    alert('Backup sebagian berhasil: '+totalSynced+' data\nError: '+errors.join('\n')+'\n\nCek Table Editor - tabel yang belum ada harus dibuat dulu (lihat file supabase-setup.sql)');
+  } else {
+    alert('Backup Online Berhasil! Anti dobel OK - '+DB.notas.length+' nota, total '+totalSynced+' record ke Supabase');
+  }
+  
+  setTimeout(()=>{const st=document.getElementById('onlineStatus'); if(st){const isOn=navigator.onLine; st.textContent=isOn?'ONLINE':'OFFLINE'; st.style.background=isOn?'#10b981':'#ef4444';}},2500);
+}catch(e){console.error('backupOnline real error', e); alert('Gagal backup: '+e.message); const st=document.getElementById('onlineStatus'); if(st){st.textContent='ERROR'; st.style.background='#ef4444';}}}
 function navigate(page){try{
   if(!currentUser && (typeof LOGIN_PAUSED==='undefined' || !LOGIN_PAUSED)){
     const pm=document.getElementById('modalPin'); if(pm) pm.classList.add('active');
@@ -7055,16 +7181,28 @@ function installPWA() {
   }
 }
 
-// Online/offline status
+// Online/offline status - FIX header ONLINE
+function updateOnlineStatus(){
+  const st=document.getElementById('onlineStatus');
+  if(st){
+    const isOn=navigator.onLine;
+    st.textContent=isOn?'ONLINE':'OFFLINE';
+    st.style.background=isOn?'#10b981':'#ef4444';
+    console.log('LaundryLand status:', st.textContent);
+  }
+}
 window.addEventListener('online', () => {
   console.log('LaundryLand: Online');
   document.body.classList.remove('offline');
+  updateOnlineStatus();
   if (typeof syncOfflineNotas === 'function') syncOfflineNotas();
 });
 window.addEventListener('offline', () => {
   console.log('LaundryLand: Offline');
   document.body.classList.add('offline');
+  updateOnlineStatus();
 });
+window.addEventListener('load', ()=>{ setTimeout(updateOnlineStatus, 500); });
 </script>
 
 </body>
