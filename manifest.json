@@ -1,22 +1,83 @@
 {
-  "name": "Laundry Land Slip Gaji",
+  "name": "LaundryLand - Manajemen Laundry",
   "short_name": "LaundryLand",
+  "description": "Aplikasi manajemen laundry lengkap: nota thermal, antrian, pembayaran, deposito, laporan, PWA offline",
   "start_url": "./index.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "theme_color": "#0fb9a0",
+  "scope": "./",
   "icons": [
     {
-      "src": "icon-192x192.png",
+      "src": "icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-64.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512x512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Buat Nota",
+      "url": "./index.html#buatnota",
+      "description": "Buat nota laundry baru",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Antrian",
+      "url": "./index.html#antrian",
+      "description": "Lihat antrian nota",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Laporan",
+      "url": "./index.html#laporan",
+      "description": "Laporan keuangan",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "lang": "id-ID"
 }
