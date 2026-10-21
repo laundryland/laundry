@@ -2,27 +2,18 @@
 if(window.__laundry_supabase_loaded) return; window.__laundry_supabase_loaded=true;
 var SUPABASE_URL="https://zfyjcaklaithzykkdrne.supabase.co";
 var SUPABASE_KEY="sb_publishable_xnLqevbuQVG_U6XDATKSHw_nBBZs161";
-var supabaseClient=null, realtimeChannel=null;
+var supabaseClient=null;
 var DB_KEY="laundryland_db_v2";
-var ignoreUntil=0;
 var lastHash="";
-function log(m){console.log("[Supa v23]",m);}
+function log(m){console.log("[Supa v25 STABLE]",m);}
 function getDB(){ try{ return JSON.parse(localStorage.getItem(DB_KEY)||"null")||{outlets:[],karyawans:[],pelanggans:[],layanans:[],notas:[],pengeluarans:[]}; }catch{ return {outlets:[],karyawans:[],pelanggans:[],layanans:[],notas:[],pengeluarans:[]}; } }
 function saveDBLocal(db){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
-function hashDB(db){ try{ return (db.notas||[]).length+":"+(db.pelanggans||[]).length+":"+(db.layanans||[]).length+":"+(db.karyawans||[]).length; }catch(e){ return Date.now()+""; } }
+function hashDB(db){ try{ return (db.notas||[]).length+":"+(db.pelanggans||[]).length+":"+(db.layanans||[]).length+":"+(db.karyawans||[]).length+":"+(db.outlets||[]).length; }catch(e){ return Date.now()+""; } }
 function initSupabase(){
   try{
     if(window.supabase && window.supabase.createClient){
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      log("Connected");
-      try{
-        if(realtimeChannel) try{ supabaseClient.removeChannel(realtimeChannel); }catch(e){}
-        realtimeChannel = supabaseClient.channel("laundry-sync-v23")
-          .on("postgres_changes",{event:"*",schema:"public",table:"laundry_backup"}, function(){
-            if(Date.now()<ignoreUntil) return;
-            setTimeout(()=>loadFromSupabase(true),1000);
-          }).subscribe();
-      }catch(e){}
+      log("Connected - SAFE MODE (no auto overwrite)");
       return true;
     }
   }catch(e){}
@@ -33,25 +24,19 @@ async function syncToSupabase(){
   try{
     var db=getDB();
     if(!db.outlets || !db.outlets.length) return;
+    // dedup outlets
+    try{
+      var seen={}; db.outlets=db.outlets.filter(o=>{ if(seen[o.id]) return false; seen[o.id]=1; return true; });
+    }catch(e){}
     var h=hashDB(db);
     if(h===lastHash) return;
+    // JANGAN sync kalau local kosong total (cegah timpa Supabase jadi 0)
     var empty = (db.notas||[]).length===0 && (db.pelanggans||[]).length===0 && (db.layanans||[]).length<=2;
-    var noKar = !db.karyawans || !db.karyawans.length;
-    if(empty || noKar){
-      log("Local kosong, cek Supabase dulu jangan timpa");
-      var chk=await supabaseClient.from("laundry_backup").select("total_nota,total_pelanggan").limit(5);
-      if(chk.data && chk.data.some(r=> (r.total_nota||0)>0 || (r.total_pelanggan||0)>0 )){
-        log("Supabase ada data, skip sync kosong, load dulu");
-        await loadFromSupabase(true);
-        return;
-      }
+    if(empty){
+      log("Local kosong, SKIP sync biar Supabase gak jadi 0");
+      return;
     }
-    ignoreUntil=Date.now()+4000;
-    // FIX v24: dedup outlets before sync
-      try{
-        const seenO={}; db.outlets = db.outlets.filter(o=>{ if(seenO[o.id]) return false; seenO[o.id]=1; return true; });
-      }catch(e){}
-      for(var outlet of db.outlets){
+    for(var outlet of db.outlets){
       var payload={
         outlet_id:outlet.id,
         outlet_nama:outlet.nama||'Outlet',
@@ -70,17 +55,22 @@ async function syncToSupabase(){
       await supabaseClient.from("laundry_backup").upsert(payload,{onConflict:"outlet_id"});
     }
     lastHash=h;
-    log("Sync OK "+(db.notas||[]).length+" nota / "+(db.layanans||[]).length+" layanan");
+    log("Sync OK "+(db.notas||[]).length+" nota");
   }catch(e){ log("sync fail "+e.message); }
 }
-async function loadFromSupabase(silent){
+async function loadFromSupabase(manual){
   if(!supabaseClient && !initSupabase()) return;
   try{
     var localDB=getDB();
     var res=await supabaseClient.from("laundry_backup").select("*").order("updated_at",{ascending:false}).limit(10);
     if(!res.data || !res.data.length) return;
+    // Only load if user clicks manual or local is truly empty
+    var isEmpty = (localDB.notas||[]).length===0 && (localDB.pelanggans||[]).length===0 && (localDB.layanans||[]).length<=2;
+    if(!manual && !isEmpty) {
+      log("Local ada data, skip auto load biar gak dobel");
+      return;
+    }
     var merged={outlets:[],karyawans:[],pelanggans:[],layanans:[],notas:[],pengeluarans:[],setting:localDB.setting};
-    var seen={};
     for(var row of res.data){
       var d=row.data||{};
       if(d.outlet && !merged.outlets.find(o=>o.id===d.outlet.id)) merged.outlets.push(d.outlet);
@@ -88,33 +78,30 @@ async function loadFromSupabase(silent){
       for(var p of (d.pelanggans||[])) if(!merged.pelanggans.find(x=>x.id===p.id)) merged.pelanggans.push(p);
       for(var l of (d.layanans||[])) if(!merged.layanans.find(x=>x.id===l.id)) merged.layanans.push(l);
       for(var n of (d.notas||[])) if(!merged.notas.find(x=>x.id===n.id)) merged.notas.push(n);
-      for(var pe of (d.pengeluarans||[])) if(!merged.pengeluarans.find(x=>x.id===pe.id)) merged.pengeluarans.push(pe);
     }
-    // Jika remote ada layanan tapi local kosong -> restore
-    var need = merged.notas.length>(localDB.notas||[]).length || merged.pelanggans.length>(localDB.pelanggans||[]).length || merged.layanans.length>(localDB.layanans||[]).length || merged.karyawans.length>(localDB.karyawans||[]).length;
-    var localEmpty = (localDB.notas||[]).length===0 && (localDB.layanans||[]).length<=2;
-    if(need || (localEmpty && (merged.notas.length>0 || merged.layanans.length>2))){
-      // jangan timpa setting kosong dengan kosong
-      merged.setting = localDB.setting || merged.setting;
-      if(!merged.karyawans.length){
-        merged.karyawans=[{id:'karyawan_1',nama:'Owner',pin:'123456',level:'Owner',outlet_id:'outlet_1',lintas:true},{id:'karyawan_2',nama:'Admin',pin:'000000',level:'Admin',outlet_id:'outlet_1',lintas:true}];
-      }
-      if(!merged.outlets.length){
-        merged.outlets=[{id:'outlet_1',nama:'LaundryLand Pusat - Madiun',alamat:'Jl. Contoh No.1 Madiun',aktif:true}];
-      }
-      if(!merged.layanans.length){
-        var now=Date.now();
-        merged.layanans=[{id:'lay_1',kode:'CKS01',nama:'Cuci Kering Setrika',harga:7000,satuan:'Kg',min_qty:3,estimasi_jenis:'Hari',estimasi_nilai:1,last_modified:now},{id:'lay_2',kode:'SPS01',nama:'Setrika Saja',harga:4000,satuan:'Kg',min_qty:1,estimasi_jenis:'Jam',estimasi_nilai:6,last_modified:now}];
-      }
+    // dedup outlets
+    var seenO={}; merged.outlets=merged.outlets.filter(o=>{ if(seenO[o.id]) return false; seenO[o.id]=1; return true; });
+    if(!merged.karyawans.length){
+      merged.karyawans=[{id:'karyawan_1',nama:'Owner',pin:'123456',level:'Owner',outlet_id:'outlet_1',lintas:true},{id:'karyawan_2',nama:'Admin',pin:'000000',level:'Admin',outlet_id:'outlet_1',lintas:true}];
+    }
+    if(!merged.outlets.length){
+      merged.outlets=[{id:'outlet_1',nama:'LaundryLand Pusat - Madiun',alamat:'Jl. Contoh No.1 Madiun',aktif:true}];
+    }
+    if(!merged.layanans.length){
+      merged.layanans=[{id:'lay_1',kode:'CKS01',nama:'Cuci Kering Setrika',harga:7000,satuan:'Kg',min_qty:3},{id:'lay_2',kode:'SPS01',nama:'Setrika Saja',harga:4000,satuan:'Kg',min_qty:1}];
+    }
+    // Only restore if remote has more data
+    if(merged.notas.length>(localDB.notas||[]).length || merged.pelanggans.length>(localDB.pelanggans||[]).length || isEmpty){
       saveDBLocal(merged);
       lastHash=hashDB(merged);
-      log("Restore dari Supabase: "+merged.notas.length+" nota, "+merged.layanans.length+" layanan, "+merged.karyawans.length+" karyawan");
+      log("Restore "+merged.notas.length+" nota dari Supabase");
       if(typeof renderAll==='function') setTimeout(()=>{ try{renderAll();}catch(e){} },500);
     }
   }catch(e){ log("load fail "+e.message); }
 }
-window.LaundrySupabase={init:initSupabase, sync:syncToSupabase, load:loadFromSupabase};
-var t=setInterval(function(){ if(initSupabase()){ clearInterval(t); setTimeout(()=>loadFromSupabase(true),1000); setTimeout(()=>syncToSupabase(),3000);} },1000);
-setInterval(()=>{ if(document.visibilityState==="visible") syncToSupabase(); },60000);
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") loadFromSupabase(true); });
+window.LaundrySupabase={init:initSupabase, sync:syncToSupabase, load:loadFromSupabase, manualLoad:function(){ loadFromSupabase(true); }};
+// Init but NO auto sync every 30s that causes dobel - only on load once
+var t=setInterval(function(){ if(initSupabase()){ clearInterval(t); setTimeout(()=>loadFromSupabase(false),2000); } },1000);
+// Manual sync only when user saves data
+window.addEventListener("laundry-updated", ()=>{ setTimeout(()=>syncToSupabase(),1000); });
 })();
