@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>LaundryLand Project - RESTORE Setting Lengkap</title>
+<title>LaundryLand Project - v30 GitHub & Pages Terhubung</title>
 <meta name="theme-color" content="#0fb9a0">
 <style>
 :root{--hijau:#0fb9a0;--hijau-dark:#0a8f7a;--biru:#0e7490;--abu:#d1d5db;--pink:#f618a9;--bg:#f8fafc}
@@ -968,7 +968,17 @@ function defaultDB(){
 
 function loadDB(){try{
   const raw=localStorage.getItem(DB_KEY); 
-  DB=raw?JSON.parse(raw):defaultDB(); 
+  let parsed=null; try{ parsed=raw?JSON.parse(raw):null; }catch(e){}
+  DB=parsed||defaultDB();
+  const def=defaultDB(); let needSave=false;
+  if(!DB.karyawans || !DB.karyawans.length){ DB.karyawans=def.karyawans; needSave=true; }
+  if(!DB.outlets || !DB.outlets.length){ DB.outlets=def.outlets; needSave=true; }
+  if(!DB.layanans || !DB.layanans.length){ DB.layanans=def.layanans; needSave=true; }
+  if(DB.outlets && DB.outlets.length>1){
+    const seen={}; const uniq=[]; DB.outlets.forEach(o=>{ if(!seen[o.id]){ seen[o.id]=1; uniq.push(o); } });
+    if(uniq.length!==DB.outlets.length){ DB.outlets=uniq; needSave=true; }
+  }
+  if(needSave){ try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }catch(e){} } 
   // === MIGRASI TIMESTAMP PELANGGAN - Riwayat Pelanggan ===
   try{
     let needSaveMigrasi=false;

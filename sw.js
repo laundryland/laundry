@@ -1,7 +1,5 @@
-const CACHE_NAME = 'laundry-v7-fix-ringkasan-global-label';
+const CACHE_NAME = 'laundry-v30-github-pages-terhubung';
 const ASSETS = [
-  '/',
-  './',
   './index.html',
   './manifest.json',
   './icon-32.png',
@@ -12,46 +10,33 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  console.log('[SW] Install v7 fix ringkasan global label');
+  console.log('[SW] Install v30 - GitHub & Pages terhubung - fix duplicate');
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(()=>self.skipWaiting())
+    caches.open(CACHE_NAME).then(cache => {
+      return Promise.allSettled(ASSETS.map(url => cache.add(url).catch(()=>{})));
+    }).then(()=>self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (e) => {
-  console.log('[SW] Activate v7 - cleaning old');
+  console.log('[SW] Activate v30 - cleaning v4 duplicate cache');
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (e) => {
-  // Jangan cache supabase - biar online real
-  if (e.request.url.includes('supabase.co') || e.request.url.includes('supabase-js')) {
-    return;
-  }
-  // Untuk navigasi (PWA install), selalu coba network dulu, fallback ke cache
+  if (e.request.url.includes('supabase.co') || e.request.url.includes('supabase-js')) return;
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).then(res => {
-        // cache navigasi terbaru
-        caches.open(CACHE_NAME).then(cache=>cache.put(e.request, res.clone()));
+        caches.open(CACHE_NAME).then(c=>c.put(e.request, res.clone()));
         return res;
-      }).catch(() => {
-        return caches.match('/').then(r => r || caches.match('./index.html')).then(r => r || caches.match('./'));
-      })
+      }).catch(() => caches.match('./index.html'))
     );
     return;
   }
-  // Untuk asset lain: cache first
   e.respondWith(
-    caches.match(e.request).then(res => {
-      return res || fetch(e.request).then(fetchRes => {
-        if(e.request.method==='GET' && e.request.url.startsWith(self.location.origin)){
-          caches.open(CACHE_NAME).then(cache=>cache.put(e.request, fetchRes.clone()));
-        }
-        return fetchRes;
-      });
-    })
+    caches.match(e.request).then(r => r || fetch(e.request))
   );
 });
