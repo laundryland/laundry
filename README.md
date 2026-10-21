@@ -1,69 +1,47 @@
-# LaundryLand - PWA Laundry Management
+# LaundryLand Project - Cloudflare Pages + GitHub
 
-Aplikasi manajemen laundry lengkap dengan PWA offline, thermal printing RPP02N & GZB100 VSC MP-58 PRO, share WA Bisnis.
+## Cara Deploy ke Cloudflare Pages via GitHub (Recommended)
 
-## Fitur Fix Terbaru
-- ✅ Border-1 semua sub kolom
-- ✅ Kolom ATAS hijau tosca (#0fb9a0) + space 10px dari No Nota
-- ✅ Hapus tulisan STATUS: dan garis putus - cukup Lunas/Belum Lunas dengan warna asli
-- ✅ Kolom ATAS & BAWAH 1 kolom full width, auto row, perintah beda & berdiri sendiri (settingNotaAtas & settingNotaBawah)
-- ✅ KartuAntrian: icon Share WA Bisnis di pojok kanan estimasi + label Share WA + space 15px
-- ✅ KartuBayarNota: icon 💵 Tunai, 📱 QRIS, 🏦 Transfer
-- ✅ Hapus Terima Kasih! kecil di luar kolom pada PNG
-- ✅ RPP02N cepat (100 byte), GZB100 stabil (20 byte + write response)
+### Kenapa icon hilang kalau upload cuma html?
+Cloudflare Pages Direct Upload itu **replace total**, bukan tambah. Tiap upload baru, semua file lama kehapus. Jadi kalau upload cuma `index.html`, icon-icon hilang → favicon jadi globe.
 
-## File PWA
-- `index.html` - File utama (sudah include manifest & SW registration)
-- `manifest.json` - PWA manifest, icons dari root github
-- `sw.js` - Service Worker offline-first, cache-first untuk assets, network-first untuk Supabase
-- `icon-*.png` - Sudah ada di root github: icon-32, 64, 180, 192, 512
+**Solusi: Upload via GitHub**
 
-## Deploy GitHub Pages (Repo LaundryLand)
-1. Push semua file ke repo `LaundryLand` branch `main`
-2. Settings > Pages > Source: Deploy from branch, Branch: main / root
-3. URL: `https://username.github.io/LaundryLand/`
-4. Icons akan load dari `./icon-*.png`
+1. Buat repo baru di GitHub, misal `laundryland-madiun`
+2. Upload semua file dari folder ini ke repo:
+   - `index.html`
+   - `manifest.json`
+   - `sw.js`
+   - `supabase-laundry.js`
+   - `icon-32.png`, `icon-64.png`, `icon-180.png`, `icon-192.png`, `icon-512.png`
+3. Di Cloudflare Dashboard → Pages → Create project → Connect to Git → pilih repo `laundryland-madiun`
+4. Build settings:
+   - Framework preset: None
+   - Build command: (kosongkan)
+   - Output directory: `/`
+5. Deploy → selesai. Icon tidak akan hilang lagi.
 
-## Deploy Supabase (Project Kedua - Belum Buat)
-1. Buat project baru di https://supabase.com/dashboard > New Project
-2. Copy URL & Anon Key ke `.env` (lihat `.env.example`)
-3. Jalankan `supabase_schema.sql` di SQL Editor
-4. Enable Auth jika perlu
-5. Project pertama tetap jalan, project kedua untuk production LaundryLand
+### Update selanjutnya
+- Edit file di lokal atau langsung di GitHub
+- `git add .`, `git commit -m "update"`, `git push`
+- Cloudflare otomatis deploy ulang **semua file** — icon tetap ada.
 
-## Deploy Cloudflare (Belum Buat)
-### Opsi A: Cloudflare Pages (Recommended)
-```bash
-npx wrangler pages publish ./ --project-name=laundryland
-```
-Atau connect GitHub repo di dashboard Cloudflare Pages.
-
-### Opsi B: Cloudflare Workers
-```bash
-wrangler publish
+### Favicon sudah fix
+`<head>` sudah ada:
+```html
+<link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="manifest" href="./manifest.json">
 ```
 
-Isi `account_id` di `wrangler.toml` dari dashboard Cloudflare.
+### PWA
+- `manifest.json` wajib untuk Add to Home Screen
+- `sw.js` cache `v7-fix-ringkasan-global-label`
 
-## Icons
-Sudah ada di root:
-- icon-32.png (favicon)
-- icon-64.png (badge)
-- icon-180.png (apple-touch)
-- icon-192.png (PWA standard)
-- icon-512.png (PWA large)
+### Supabase
+- Project: zfyjcaklaithzykkdrne
+- Jika muncul banner "Investigating", itu normal untuk free tier baru, tunggu 10-30 menit, akan hilang sendiri. Bukan pelanggaran.
+- Jangan commit anon key ke public repo, pakai env variable di Cloudflare Pages → Settings → Environment Variables
 
-Manifest sudah refer ke semua icon dengan purpose any maskable.
-
-## Test PWA
-1. Buka di Chrome mobile
-2. Menu > Install App / Add to Home Screen
-3. Test offline: airplane mode, reload tetap jalan (SW cache)
-
-## Audit Tombol & Element
-- ✅ 209 onclick, 217 defined functions, 4 missing (sudah fix: showDepositoHistory, testPrintThermal, hapusNota)
-- ✅ Semua modal: modalBayar, modalPreviewNota, modalPilihanKirim, modalPickerPelanggan
-- ✅ Bluetooth: connect, disconnect, printViaBluetooth (RPP02N & GZB100)
-- ✅ Share WA: shareWA(true,id) dengan label
-- ✅ Bayar: Tunai, QRIS, Transfer dengan icon
-- ✅ Nota: atas & bawah independen auto row
+## Rollback
+Restore point ada di `restore-point-before-price-list.json` dan `restore-point-after-price-list.json`

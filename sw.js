@@ -1,5 +1,6 @@
-const CACHE_NAME = 'laundry-v3-supabase-real';
+const CACHE_NAME = 'laundry-v7-fix-ringkasan-global-label';
 const ASSETS = [
+  '/',
   './',
   './index.html',
   './manifest.json',
@@ -11,14 +12,14 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  console.log('[SW] Install v3');
+  console.log('[SW] Install v7 fix ringkasan global label');
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(()=>self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (e) => {
-  console.log('[SW] Activate v3 - cleaning old');
+  console.log('[SW] Activate v7 - cleaning old');
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
   );
@@ -26,22 +27,30 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   // Jangan cache supabase - biar online real
-  if (e.request.url.includes('supabase.co')) {
+  if (e.request.url.includes('supabase.co') || e.request.url.includes('supabase-js')) {
     return;
   }
+  // Untuk navigasi (PWA install), selalu coba network dulu, fallback ke cache
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        // cache navigasi terbaru
+        caches.open(CACHE_NAME).then(cache=>cache.put(e.request, res.clone()));
+        return res;
+      }).catch(() => {
+        return caches.match('/').then(r => r || caches.match('./index.html')).then(r => r || caches.match('./'));
+      })
+    );
+    return;
+  }
+  // Untuk asset lain: cache first
   e.respondWith(
     caches.match(e.request).then(res => {
       return res || fetch(e.request).then(fetchRes => {
-        // cache html/css/js saja
         if(e.request.method==='GET' && e.request.url.startsWith(self.location.origin)){
           caches.open(CACHE_NAME).then(cache=>cache.put(e.request, fetchRes.clone()));
         }
         return fetchRes;
-      }).catch(()=> {
-        // fallback offline cuma untuk navigasi
-        if(e.request.mode==='navigate'){
-          return caches.match('./index.html');
-        }
       });
     })
   );
