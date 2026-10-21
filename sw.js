@@ -1,4 +1,4 @@
-const CACHE_NAME = 'laundry-v7-fix-ringkasan-global-label';
+const CACHE_NAME = 'laundry-v20-fix-pin-restore';
 const ASSETS = [
   '/',
   './',
@@ -12,14 +12,14 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  console.log('[SW] Install v7 fix ringkasan global label');
+  console.log('[SW] Install v20 fix pin restore');
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(()=>self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (e) => {
-  console.log('[SW] Activate v7 - cleaning old');
+  console.log('[SW] Activate v20 - cleaning old - fix pin');
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
   );
