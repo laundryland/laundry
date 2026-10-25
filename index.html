@@ -5266,7 +5266,6 @@ function showPilihanKirim(notaId, isBisnis){
     const pel=(typeof DB!=='undefined'&&DB.pelanggans)?DB.pelanggans.find(p=>p.id===nota.pelanggan_id):{nama:'Pelanggan',nohp:''};
     const infoText = nota.no_nota + ' - ' + (pel?.nama||'') + ' (' + (pel?.nohp||'') + ') - ' + (typeof formatRp==='function'?formatRp(nota.jumlah):nota.jumlah);
     const formatted = formatNoHPforWA(pel?.nohp||'');
-    // Buat modal jika belum ada
     let modal = document.getElementById('modalPilihanKirim');
     if(!modal){
       const html = `
@@ -5274,12 +5273,11 @@ function showPilihanKirim(notaId, isBisnis){
         <div class="modal-box" style="max-width:380px">
           <div class="title">📲 Kirim ke WA Bisnis - Langsung ke Chat</div>
           <div class="small" style="background:#f0fdfa;padding:8px;border-radius:8px;margin-bottom:8px;border:1px solid #0fb9a0" id="pilihanKirimInfo">${infoText}</div>
-          <div class="small" style="color:#065f46;background:#d1fae5;padding:6px;border-radius:6px;margin-bottom:10px;border:1px solid #a7f3d0">📞 No WA: <b id="pilihanKirimNoHP">${pel?.nohp||'-'} → ${formatted}</b><br>✅ Langsung ke chat tanpa pilih manual (saved & unsaved)</div>
-          <button class="btn btn-hijau btn-full" id="btnPilihanText" style="margin-bottom:8px">💬 Text Saja - Langsung ke Chat</button>
-          <button class="btn btn-hijau btn-full" id="btnPilihanGambar" style="margin-bottom:8px;background:#f59e0b">🖼️ Gambar Saja - RAM Tanpa Download</button>
-          <button class="btn btn-hijau btn-full" id="btnPilihanKeduanya" style="background:#25d366">💬🖼️ Text + Gambar - Untuk Pelanggan Baru</button>
-          <button class="btn btn-abu btn-full" style="margin-top:10px" onclick="closeModal('modalPilihanKirim')">✕ Batal</button>
-          <div class="small" style="margin-top:8px;color:#6b7280;text-align:center;font-size:9px">Flow baru: Tanpa download PNG, tanpa notice ijin kontak.<br>Text via wa.me/62xxx langsung chat.<br>Gambar via Clipboard RAM + wa.me → Paste → Kirim</div>
+          <div class="small" style="color:#065f46;background:#d1fae5;padding:6px;border-radius:6px;margin-bottom:10px;border:1px solid #a7f3d0">📞 No WA: <b id="pilihanKirimNoHP">${pel?.nohp||'-'} → ${formatted}</b><br>✅ Langsung ke chat tanpa pilih manual</div>
+          <button class="btn btn-hijau btn-full" id="btnPilihanText" style="margin-bottom:10px">💬 Text Saja - Langsung ke Chat</button>
+          <button class="btn btn-hijau btn-full" id="btnPilihanGambar" style="background:#25d366">📤 Kirim - Gambar Nota (RAM)</button>
+          <button class="btn btn-abu btn-full" style="margin-top:12px" onclick="closeModal('modalPilihanKirim')">✕ Batal</button>
+          <div class="small" style="margin-top:8px;color:#6b7280;text-align:center;font-size:9px">No1: Text full nota<br>No2 Kirim: Gambar di-copy RAM + wa.me/62xxx?text=%20 → Paste di chat</div>
         </div>
       </div>`;
       document.body.insertAdjacentHTML('beforeend', html);
@@ -5292,10 +5290,8 @@ function showPilihanKirim(notaId, isBisnis){
     }
     const btnText=document.getElementById('btnPilihanText');
     const btnGambar=document.getElementById('btnPilihanGambar');
-    const btnKeduanya=document.getElementById('btnPilihanKeduanya');
     if(btnText) btnText.onclick = function(){ try{closeModal('modalPilihanKirim');}catch(e){} kirimTextWA(notaId, isBisnis); };
     if(btnGambar) btnGambar.onclick = function(){ try{closeModal('modalPilihanKirim');}catch(e){} kirimGambarWA(notaId, isBisnis); };
-    if(btnKeduanya) btnKeduanya.onclick = function(){ try{closeModal('modalPilihanKirim');}catch(e){} kirimTextDanGambarWA(notaId, isBisnis); };
     if(typeof openModal==='function') openModal('modalPilihanKirim');
     else modal.classList.add('active');
   }catch(e){ console.error('showPilihanKirim error', e); }
@@ -5356,74 +5352,29 @@ async function kirimGambarWA(notaId, isBisnis){
     var rawNoHP = pel && pel.nohp ? pel.nohp : '';
     var formatted = formatNoHPforWA(rawNoHP);
     const blob = await new Promise(function(res){ canvas.toBlob(function(b){res(b);},'image/png', 0.92); });
-    if(!blob || blob.size<1000){ alert('Gambar blank! Buka Preview Live di Setting Nota dulu'); return; }
-    // No2: 1 spasi tanpa text simpel + COPY RAM
+    if(!blob || blob.size<1000){ alert('Gambar blank! Buka Preview Nota dulu'); return; }
     var copied = false;
     if(navigator.clipboard && window.ClipboardItem){
       try{
         var item = new ClipboardItem({'image/png': blob});
         await navigator.clipboard.write([item]);
         copied = true;
-      }catch(err){ 
-        console.warn('Clipboard write gagal', err);
-        try{
-          // Fallback ClipboardItem dengan blob langsung
-          await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
-          copied = true;
-        }catch(e2){ console.warn('Clipboard fallback gagal', e2); }
-      }
+      }catch(err){ console.warn('Clipboard gagal', err); }
     }
     if(copied){
-      if(typeof showExitToast==='function'){
-        showExitToast('✅ Gambar di-copy RAM! Paste di chat WA '+pel.nama+' → Tempel → Kirim');
-      }
+      showExitToast('✅ Gambar di-copy RAM! Paste di chat WA '+pel.nama+' → Tempel → Kirim', 'copy');
     }else{
-      if(typeof showExitToast==='function'){
-        showExitToast('⚠️ Copy RAM gagal, tapi WA tetap dibuka ke '+pel.nama+' - coba tap lama > Paste');
-      }
+      showExitToast('⚠️ Copy RAM gagal - WA ke '+pel.nama+' tetap dibuka', 'error');
     }
     var waUrl = formatted ? 'https://wa.me/'+formatted+'?text=%20' : 'https://wa.me/?text=%20';
-    setTimeout(function(){ window.open(waUrl,'_blank'); }, 250);
+    setTimeout(function(){ window.open(waUrl,'_blank'); }, 300);
     return;
   }catch(e){ alert('Gagal kirim gambar WA: '+(e.message||e)); }
 }
 
 
 
-async function kirimTextDanGambarWA(notaId, isBisnis){
-  try{
-    var nota=(typeof DB!=='undefined'&&DB.notas)?DB.notas.find(function(n){return n.id===notaId;})||DB.notas[0]:null; if(!nota) return;
-    var pel=(typeof DB!=='undefined'&&DB.pelanggans)?DB.pelanggans.find(function(p){return p.id===nota.pelanggan_id;})||{nama:'Pelanggan',nohp:''}:{nama:'Pelanggan',nohp:''};
-    var out=(typeof DB!=='undefined'&&DB.outlets)?DB.outlets.find(function(o){return o.id===nota.outlet_id;})||DB.outlets[0]:{nama:'Laundry Land'};
-    var setting=(typeof DB!=='undefined'&&DB.setting&&DB.setting.nota)?DB.setting.nota:{};
-    var outletNama=out?out.nama:(typeof getOutletAktifNama==='function'?getOutletAktifNama():'Laundry Land');
-    var canvas=document.getElementById('canvasPNG');
-    if(!canvas){ alert('Canvas tidak ada'); return; }
-    try{ renderNotaCanvas(canvas, nota, pel, setting, outletNama); }catch(e){}
-    var logoSrc = setting.logoPNG || setting.logoThermal;
-    if(logoSrc){ try{ if(typeof loadLogoImage==='function') await loadLogoImage(logoSrc); if(typeof renderNotaCanvasAsync==='function') await renderNotaCanvasAsync(canvas, nota, pel, setting, outletNama); }catch(e){} }
-    var rawNoHP = pel && pel.nohp ? pel.nohp : '';
-    var formatted = formatNoHPforWA(rawNoHP);
-    const blob = await new Promise(function(res){ canvas.toBlob(function(b){res(b);},'image/png', 0.92); });
-    if(!blob || blob.size<1000){ alert('Gambar blank!'); return; }
-    var copied = false;
-    if(navigator.clipboard && window.ClipboardItem){
-      try{ await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]); copied=true; }catch(e){ console.warn('Clipboard gagal', e); }
-    }
-    if(copied){
-      if(typeof showExitToast==='function'){
-        showExitToast('📲 Gambar di-copy RAM! WA ke '+pel.nama+' | Paste di chat');
-      }
-    }else{
-      if(typeof showExitToast==='function'){
-        showExitToast('📲 WA ke '+pel.nama+' dibuka | Gambar gagal copy, coba manual');
-      }
-    }
-    var waUrl = formatted ? 'https://wa.me/'+formatted+'?text=%20' : 'https://wa.me/?text=%20';
-    setTimeout(function(){ window.open(waUrl,'_blank'); }, 250);
-  }catch(e){ alert('Gagal kirim text+gambar: '+(e.message||e)); }
-}
-
+async function kirimTextDanGambarWA(notaId, isBisnis){ return kirimGambarWA(notaId, isBisnis); }
 
 
 
@@ -6167,22 +6118,42 @@ window.navigate = navigate;
 window._realNavigate = navigate;
 
 
-function showExitToast(msg){
+function showExitToast(msg, type){
   try{
+    console.log('[Toast '+(type||'default')+']', msg);
+    if(!type){
+      if(msg.includes('Full Sync') || msg.includes('SYNC') || msg.includes('retry full') || (msg.includes('ONLINE') && msg.includes('outlet')) || msg.includes('OFFLINE - retry')){
+        console.log('[Sync silent Opsi A]', msg);
+        try{
+          const st=document.getElementById('onlineStatus');
+          if(st && msg.includes('Full Sync')){
+            const oldBg=st.style.background;
+            st.style.background='#22c55e';
+            setTimeout(function(){ st.style.background=oldBg||'#10b981'; }, 1000);
+          }
+        }catch(e){}
+        return;
+      }
+    }
     let t=document.getElementById('exitToast');
     if(!t){
       t=document.createElement('div');
       t.id='exitToast';
-      t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111827;color:white;padding:14px 22px;border-radius:24px;font-size:13px;font-weight:800;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none;max-width:85%;text-align:center;border:1px solid #0fb9a0;';
       document.body.appendChild(t);
     }
+    let bg='#111827', border='#0fb9a0', color='#fff';
+    if(type==='wa'){ bg='#25d366'; border='#128c7e'; color='#fff'; }
+    else if(type==='copy'){ bg='#0ea5e9'; border='#0284c7'; color='#fff'; }
+    else if(type==='pricelist'){ bg='#f59e0b'; border='#d97706'; color='#000'; }
+    else if(type==='error'){ bg='#ef4444'; border='#b91c1c'; color='#fff'; }
+    t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:'+bg+';color:'+color+';padding:14px 22px;border-radius:24px;font-size:13px;font-weight:800;z-index:999999;box-shadow:0 8px 24px rgba(0,0,0,0.35);display:none;max-width:85%;text-align:center;border:2px solid '+border+';';
     t.textContent=msg;
     t.style.display='block';
     t.style.opacity='1';
-    // Toast 4 detik biar kelihatan sebelum buka WA
-    setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>{ t.style.display='none'; },400); },4000);
-  }catch(e){ console.error('toast error',e); }
+    setTimeout(function(){ try{ t.style.opacity='0'; setTimeout(function(){ t.style.display='none'; },400); }catch(e){} },5000);
+  }catch(e){ console.error('toast',e); }
 }
+
 
 function initDoubleBackExit(){
   try{
@@ -8259,7 +8230,7 @@ function exportKasDetail(){
 <button class="btn btn-abu btn-full" onclick="closeModal('modalPriceList')">✖️ Tutup</button>
 <button class="btn btn-hijau" style="flex:1" onclick="navigate('buatnota'); closeModal('modalPriceList')">🧾 Buat Nota</button>
 </div>
-<button class="btn" style="width:100%;background:linear-gradient(135deg,#25d366,#128c7e);color:white;border:0;padding:12px;border-radius:10px;font-weight:800;font-size:12px;box-shadow:0 2px 8px rgba(37,211,102,0.3)" onclick="sharePriceListWA()">📤 Share PriceList ke WA Bisnis - Gambar Utuh</button>
+<button class="btn" style="width:100%;background:linear-gradient(135deg,#25d366,#128c7e);color:white;border:0;padding:12px;border-radius:10px;font-weight:800;font-size:12px;box-shadow:0 2px 8px rgba(37,211,102,0.3)" onclick="sharePriceListWA()">📤 Kirim WA - PriceList Text Rapi</button>
 </div>
 </div></div>
 
@@ -8564,7 +8535,16 @@ async function loadFromSupabase(force=false){
     try{
       if(typeof showExitToast==='function'){
         const act=remote._last_action? ' ('+remote._last_action+')' : '';
-        showExitToast('🔄 Full Sync dari HP lain'+act+': '+ (targetDB.notas?.length||0) +' nota • '+(targetDB.pelanggans?.length||0)+' pelanggan');
+        console.log('[Opsi A] Full Sync silent'+act+' - '+(targetDB.notas?.length||0)+' nota • '+(targetDB.pelanggans?.length||0)+' pelanggan');
+        try{
+          const st=document.getElementById('onlineStatus');
+          if(st){
+            const oldBg=st.style.background;
+            st.style.background='#22c55e';
+            st.style.transition='background 0.3s';
+            setTimeout(function(){ st.style.background=oldBg||'#10b981'; }, 1200);
+          }
+        }catch(e){}
       }
     }catch(e){}
   }catch(e){ console.error('[FULL SYNC] load error', e); window.__supabase_saving=false; }
