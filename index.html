@@ -233,6 +233,33 @@ body{display:flex;justify-content:center;min-height:100vh}
 #modalSettingHakAkses .modal-box, #modalSettingNota .modal-box, #modalSettingPreview .modal-box, #modalPreviewNota .modal-box{max-height:85vh !important;overflow-y:auto !important}
 .modal-box .card{overflow:visible !important}
 
+
+/* FIX v21.27 - kartuRincianOmzetHariIni h-auto-max-[40-60] lebih tinggi anti kepotong bawah - aman login */
+#modalKasDetail .modal-box{max-width:410px !important;max-height:92vh !important;overflow-y:auto !important;padding:16px !important;box-sizing:border-box !important}
+#kasDetailContent{max-height:68vh !important;overflow-y:auto !important;gap:12px !important;padding-bottom:28px !important;padding-right:4px !important;-webkit-overflow-scrolling:touch !important}
+#kasDetailContent .nota-card{
+  height:auto !important;
+  min-height:92px !important;
+  max-height:none !important;
+  overflow:visible !important;
+  align-self:stretch !important;
+  padding:16px 16px 22px 16px !important;
+  box-sizing:border-box !important;
+  gap:10px !important;
+}
+#kasDetailContent .nota-card[data-tipe="omzet"], #kasDetailContent .nota-card[data-tipe="tunai"], #kasDetailContent .nota-card[data-tipe="nontunai"]{
+  min-height:100px !important;
+}
+#kasDetailContent .nota-card > div{overflow:visible !important}
+#kasDetailContent .nota-card b{line-height:1.4 !important;overflow-wrap:anywhere !important;word-break:break-word !important}
+#kasDetailContent .nota-card b[style*="text-align:right"]{white-space:nowrap !important;flex-shrink:0 !important;align-self:flex-start !important}
+.kas-bento-item{padding:14px !important;min-height:64px !important}
+/* h-auto-max-[40-60]: max 60vh biar lebih tinggi dari 25-40 sebelumnya */
+@media (max-height: 850px){
+  #kasDetailContent .nota-card{max-height:60vh !important;overflow-y:auto !important}
+  #kasDetailContent{max-height:70vh !important}
+}
+
 </style>
 
   
@@ -10307,35 +10334,52 @@ function openKasDetail(tipe){
       _kasDetailData = data;
     }
     
+
     document.getElementById('kasDetailTitle').textContent = title;
     document.getElementById('kasDetailInfo').textContent = info;
     document.getElementById('kasDetailTotal').textContent = formatRp(total) + (tipe!=='hutangdeposit' ? ` • ${data.length} transaksi` : ` • ${data.length} pelanggan`);
     
+
     const contentEl = document.getElementById('kasDetailContent');
     if(data.length===0){
       contentEl.innerHTML='<div class="small" style="text-align:center;padding:20px;color:#999">Tidak ada transaksi '+tipe+' hari ini</div>';
     } else {
       if(tipe==='pengeluaran'){
-        contentEl.innerHTML=data.map(p=>{ var katNama = (typeof getNamaKategoriPengeluaran==='function'?getNamaKategoriPengeluaran(p.kategori_id||p.kategori||p.kategori_nama): (p.kategori_nama||p.kategori||p.kategori_id||'Pengeluaran')); return `<div class="nota-card" style="padding:8px"><div class="flex-between"><b>${katNama}</b><b style="color:#ef4444">-${formatRp(p.nominal)}</b></div><div class="small">${p.keterangan||''} • ${new Date(p.tanggal).toLocaleTimeString('id-ID')}</div></div>`; }).join('');
+        contentEl.innerHTML=data.map(p=>{ var katNama = (typeof getNamaKategoriPengeluaran==='function'?getNamaKategoriPengeluaran(p.kategori_id||p.kategori||p.kategori_nama): (p.kategori_nama||p.kategori||p.kategori_id||'Pengeluaran')); return `<div class="nota-card" style="padding:16px 16px 22px 16px;border-left:4px solid #ef4444;border-radius:14px;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:10px;height:auto;min-height:92px;max-height:none;overflow:visible;align-self:stretch"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px"><div style="flex:1;min-width:0"><b style="font-size:14px;color:#111827;display:block;overflow-wrap:anywhere;word-break:break-word;line-height:1.4">${katNama}</b><div class="small" style="font-size:11px;color:#6b7280;margin-top:4px;overflow-wrap:anywhere;line-height:1.35">${p.keterangan||'-'}</div></div><b style="color:#ef4444;white-space:nowrap;flex-shrink:0;font-size:14px;align-self:flex-start;line-height:1.4">-${formatRp(p.nominal)}</b></div><div style="font-size:10px;color:#9ca3af;display:flex;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px dashed #fee2e2"><span>🕒 ${new Date(p.tanggal).toLocaleTimeString('id-ID')}</span><span>${DB.outlets.find(o=>o.id===p.outlet_id)?.nama||''}</span></div></div>`; }).join('');
       } else if(tipe==='hutangdeposit'){
-        contentEl.innerHTML=data.map(p=>`<div class="nota-card" style="padding:8px"><div class="flex-between"><b>${p.nama}</b><b style="color:#0e7490">${formatRp(p.deposito)}</b></div><div class="small">📱 ${p.nohp||'-'} • ${DB.outlets.find(o=>o.id===p.outlet_id)?.nama||''}</div></div>`).join('');
+        contentEl.innerHTML=data.map(p=>`<div class="nota-card" style="padding:16px 16px 22px 16px;border-left:4px solid #0e7490;border-radius:14px;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:10px;height:auto;min-height:92px;max-height:none;overflow:visible;align-self:stretch"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px"><div style="flex:1;min-width:0"><b style="font-size:14px;color:#111827;display:block;overflow-wrap:anywhere;word-break:break-word;line-height:1.4">${p.nama}</b><div class="small" style="font-size:11px;color:#6b7280;margin-top:4px;display:flex;gap:6px;align-items:center;overflow-wrap:anywhere;line-height:1.35">📱 ${p.nohp||'-'} • ${DB.outlets.find(o=>o.id===p.outlet_id)?.nama||''}</div></div><b style="color:#0e7490;white-space:nowrap;flex-shrink:0;font-size:14px;text-align:right;align-self:flex-start;line-height:1.4">${formatRp(p.deposito)}</b></div></div>`).join('');
       } else if(tipe==='dp'){
         contentEl.innerHTML=data.map(n=>{
           const pel=DB.pelanggans.find(p=>p.id===n.pelanggan_id);
           const bayarHariIni = Array.isArray(n.riwayatBayar) ? n.riwayatBayar.filter(r=>new Date(r.tanggal).toDateString()===todayStrDetail && r.statusSesudah==='HUTANG(DP)').reduce((s,r)=>s+r.bayar,0) : (n.bayarTerakhir||n.dpBayar||0);
           const metode = Array.isArray(n.riwayatBayar) ? (n.riwayatBayar.filter(r=>new Date(r.tanggal).toDateString()===todayStrDetail)[0]?.metode||n.metode) : n.metode;
-          return `<div class="nota-card" style="padding:8px;border-left:4px solid #f59e0b"><div class="flex-between"><b>${n.no_nota}</b><b style="color:#f59e0b">+${formatRp(bayarHariIni)} ${metode}</b></div><div class="small">${pel?.nama||''} • Total ${formatRp(n.jumlah)} • DP ${formatRp(n.dpBayar)} • Sisa ${formatRp(n.sisaHutang)}<br>${(n.riwayatBayar||[]).map(r=>formatRp(r.bayar)+' '+r.metode).join(' → ')}</div></div>`;
+          return `<div class="nota-card" style="padding:16px 16px 22px 16px;border-left:4px solid #f59e0b;border-radius:14px;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:10px;height:auto;min-height:92px;max-height:none;overflow:visible;align-self:stretch"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px"><div style="flex:1;min-width:0"><b style="font-size:14px;color:#111827;display:block;overflow-wrap:anywhere;word-break:break-word;line-height:1.4">${n.no_nota}</b><div class="small" style="font-size:11px;color:#6b7280;margin-top:4px;overflow-wrap:anywhere;line-height:1.35">${pel?.nama||''} • Total ${formatRp(n.jumlah)} • Sisa ${formatRp(n.sisaHutang)}</div></div><b style="font-size:14px;font-weight:800;color:#f59e0b;white-space:nowrap;flex-shrink:0;text-align:right;align-self:flex-start;line-height:1.4">+${formatRp(bayarHariIni)} ${metode}</b></div><div style="font-size:11px;color:#6b7280;padding-top:8px;border-top:1px dashed #fef3c7;overflow-wrap:anywhere;line-height:1.35">${(n.riwayatBayar||[]).map(r=>formatRp(r.bayar)+' '+r.metode).join(' → ')}</div></div>`;
         }).join('');
       } else {
-        // Omzet menampilkan nilai nota, bukan pembayaran. Tunai/Non Tunai hanya menampilkan uang yang benar-benar dibayar.
+        // FIX v21.27 - h-auto-max-[40-60] lebih tinggi
         contentEl.innerHTML=data.map(n=>{
           const pel=DB.pelanggans.find(p=>p.id===n.pelanggan_id);
           const namaPelanggan=pel?.nama || n.namaPelanggan || n.nama_pelanggan || 'Pelanggan';
           const noNota=n.no_nota || n.noNota || '-';
           const isDP=n.statusBayar==='HUTANG(DP)';
-          const topName=`<div style="font-size:14px;font-weight:800;line-height:1.25;color:#111827;margin-bottom:3px">${namaPelanggan}</div><div style="font-size:10px;color:#6b7280;margin-bottom:6px">Nota ${noNota}</div>`;
+          const jamNota = n.tanggal ? new Date(n.tanggal).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) : '';
           if(tipe==='omzet'){
-            return `<div class="nota-card" style="padding:9px;border-left:4px solid #0fb9a0">${topName}<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="small">Nilai omzet nota • ${n.statusBayar||'Belum dibayar'}</span><b style="color:#0f766e;white-space:nowrap">${formatRp(Number(n.jumlah||0))}</b></div></div>`;
+            return `<div class="nota-card" style="padding:16px 16px 22px 16px;border-left:4px solid #0fb9a0;border-radius:14px;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:10px;height:auto;min-height:100px;max-height:none;overflow:visible;align-self:stretch">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:15px;font-weight:800;color:#111827;line-height:1.4;overflow-wrap:anywhere;word-break:break-word">${namaPelanggan}</div>
+                  <div style="font-size:11px;color:#6b7280;margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;line-height:1.35">
+                    <span>Nota ${noNota}</span>
+                    ${jamNota?'<span style="background:#f3f4f6;padding:2px 7px;border-radius:10px;font-size:10px">🕒 '+jamNota+'</span>':''}
+                  </div>
+                </div>
+                <b style="font-size:15px;font-weight:800;color:#0f766e;white-space:nowrap;flex-shrink:0;text-align:right;align-self:flex-start;line-height:1.4">${formatRp(Number(n.jumlah||0))}</b>
+              </div>
+              <div style="padding-top:10px;border-top:1px dashed #e5e7eb;display:flex;justify-content:space-between;align-items:center;gap:8px;overflow:visible">
+                <span class="small" style="font-size:11px;color:#6b7280;overflow-wrap:anywhere;line-height:1.35">💰 Nilai omzet • ${n.statusBayar||'Belum dibayar'}</span>
+                <span style="font-size:10px;background:#f0fdfa;color:#0f766e;padding:4px 9px;border-radius:12px;font-weight:700;border:1px solid #ccfbf1;white-space:nowrap">${n.statusBayar||'-'}</span>
+              </div>
+            </div>`;
           }
           const isTunai=tipe==='tunai';
           let payments=[];
@@ -10351,15 +10395,30 @@ function openKasDetail(tipe){
           }
           const bayarHariIni=payments.reduce((sum,r)=>sum+Number(r.bayar||r.nominal||r.jumlah||0),0);
           const metodeTampil=[...new Set(payments.map(r=>r.metode||r.payment_method).filter(Boolean))].join(' + ') || (isTunai?'Tunai':'Non Tunai');
-          const rincianBayar=payments.map(r=>{const nilai=Number(r.bayar||r.nominal||r.jumlah||0);const jam=r.tanggal?new Date(r.tanggal).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}):'';return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px dashed #e5e7eb"><span class="small">${r.metode||r.payment_method||metodeTampil}${jam?' • '+jam:''}</span><b style="white-space:nowrap;color:${isTunai?'#059669':'#4f46e5'}">${formatRp(nilai)}</b></div>`;}).join('');
-          return `<div class="nota-card" style="padding:9px;border-left:4px solid ${isTunai?'#10b981':'#6366f1'}">${topName}<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0"><span class="small">Total pembayaran masuk hari ini</span><b style="font-size:13px;color:${isTunai?'#059669':'#4f46e5'};white-space:nowrap">+${formatRp(bayarHariIni)}</b></div>${rincianBayar}<div class="small" style="margin-top:5px">Total nota ${formatRp(Number(n.jumlah||0))}${isDP?' • Sisa '+formatRp(Number(n.sisaHutang||0)):''} • ${n.statusBayar||'Status tidak tercatat'}</div></div>`;
+          const rincianBayar=payments.map(r=>{const nilai=Number(r.bayar||r.nominal||r.jumlah||0);const jam=r.tanggal?new Date(r.tanggal).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}):'';return `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;background:${isTunai?'#ecfdf5':'#f5f3ff'};border-radius:10px;border:1px solid ${isTunai?'#a7f3d0':'#ddd6fe'}"><span class="small" style="font-size:11px;color:#374151;display:flex;align-items:center;gap:4px;line-height:1.35">💳 ${r.metode||r.payment_method||metodeTampil}${jam?' • 🕒 '+jam:''}</span><b style="white-space:nowrap;color:${isTunai?'#059669':'#4f46e5'};font-size:13px">${formatRp(nilai)}</b></div>`;}).join('');
+          return `<div class="nota-card" style="padding:16px 16px 22px 16px;border-left:4px solid ${isTunai?'#10b981':'#6366f1'};border-radius:14px;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:10px;height:auto;min-height:100px;max-height:none;overflow:visible;align-self:stretch">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15px;font-weight:800;color:#111827;line-height:1.4;overflow-wrap:anywhere;word-break:break-word">${namaPelanggan}</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;line-height:1.35">
+                  <span>Nota ${noNota}</span>
+                  ${isDP?'<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700">DP</span>':''}
+                </div>
+              </div>
+              <b style="font-size:15px;font-weight:800;color:${isTunai?'#059669':'#4f46e5'};white-space:nowrap;flex-shrink:0;text-align:right;align-self:flex-start;line-height:1.4">+${formatRp(bayarHariIni)}</b>
+            </div>
+            ${rincianBayar?'<div style="display:flex;flex-direction:column;gap:8px;margin-top:2px;overflow:visible">'+rincianBayar+'</div>':''}
+            <div style="padding-top:10px;border-top:1px dashed #e5e7eb;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;overflow:visible">
+              <span class="small" style="font-size:11px;color:#6b7280;overflow-wrap:anywhere;line-height:1.35">🧾 Total nota ${formatRp(Number(n.jumlah||0))}${isDP?' • Sisa '+formatRp(Number(n.sisaHutang||0)):''}</span>
+              <span style="font-size:10px;background:${isTunai?'#ecfdf5':'#f5f3ff'};color:${isTunai?'#065f46':'#4338ca'};padding:4px 9px;border-radius:12px;font-weight:700;border:1px solid ${isTunai?'#a7f3d0':'#ddd6fe'};white-space:nowrap">${n.statusBayar||'Status tidak tercatat'}</span>
+            </div>
+          </div>`;
         }).join('');
       }
     }
     openModal('modalKasDetail');
   }catch(e){ console.error('openKasDetail v21.5', e); }
 }
-
 function exportKasDetail(){
   try{
     if(!_kasDetailData || _kasDetailData.length===0){ alert('Tidak ada data'); return; }
