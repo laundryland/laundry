@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LaundryLand - Cek Proses</title>
+<link rel="icon" href="https://raw.githubusercontent.com/laundryland/laundry/main/icon-32.png">
+<meta name="theme-color" content="#0fb9a0">
+<style>
+:root{--hijau:#0fb9a0; --abu:#e5e7eb}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; margin:0; background:#f0fdfa; color:#111827}
+.header{background:var(--hijau); color:white; padding:14px 16px; display:flex; align-items:center; gap:10px; position:sticky; top:0}
+.header img{width:32px; height:32px; border-radius:8px; background:white; padding:2px}
+.card{background:white; border-radius:14px; padding:16px; margin:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border:1px solid var(--abu)}
+.badge{padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700; display:inline-block}
+.badge-1{background:#fef3c7; color:#92400e}
+.badge-2{background:#dbeafe; color:#1e40af}
+.badge-3{background:#e0e7ff; color:#4338ca}
+.badge-4{background:#0fb9a0; color:white}
+.timeline{position:relative; margin-top:12px}
+.timeline::before{content:''; position:absolute; left:19px; top:10px; bottom:10px; width:3px; background:#e5e7eb; border-radius:2px}
+.step{position:relative; display:flex; gap:14px; padding:14px 0}
+.dot{width:40px; height:40px; border-radius:50%; background:#e5e7eb; display:flex; align-items:center; justify-content:center; font-size:18px; z-index:1; flex-shrink:0; border:3px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+.dot.done{background:var(--hijau); color:white}
+.dot.active{background:#f59e0b; color:white; animation:pulse 1.5s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(245,158,11,0.5)}70%{box-shadow:0 0 0 10px rgba(245,158,11,0)}100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}}
+.step-content{flex:1; padding-top:2px}
+.step-title{font-weight:800; font-size:14px}
+.step-desc{font-size:12px; color:#6b7280; margin-top:3px}
+.nota-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12px; margin-top:10px}
+.btn{border:none; border-radius:10px; padding:12px 14px; font-weight:700; cursor:pointer; font-size:13px; width:100%}
+.btn-hijau{background:var(--hijau); color:white}
+.small{font-size:11px; color:#6b7280}
+.progress-bar{height:8px; background:#e5e7eb; border-radius:10px; overflow:hidden; margin-top:12px}
+.progress-fill{height:100%; background:var(--hijau); transition:width 0.6s ease}
+</style>
+</head>
+<body>
+<div class="header">
+<img src="https://raw.githubusercontent.com/laundryland/laundry/main/icon-64.png">
+<div><b>LaundryLand</b><div style="font-size:11px; opacity:0.9">Tracking 4 Tahap</div></div>
+</div>
+
+<div id="loading" class="card" style="text-align:center">
+<div style="font-size:36px">🔍</div>
+<div style="font-weight:800; margin-top:8px">Cek proses laundry...</div>
+<div class="small">ID: <span id="idDisplay">-</span></div>
+</div>
+
+<div id="content" style="display:none">
+<div class="card" id="notaCard"></div>
+<div class="card">
+<div style="display:flex; justify-content:space-between; align-items:center">
+<b style="font-size:14px">📦 4 Tahap Proses</b>
+<span class="small" id="progressText">0/4</span>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+<div class="timeline" id="timeline"></div>
+</div>
+<div class="card" style="text-align:center">
+<button class="btn btn-hijau" onclick="shareWA()">💬 Tanya via WA</button>
+<div class="small" style="margin-top:8px">LaundryLand v21.26 • 4 Tahap Tracking</div>
+</div>
+</div>
+
+<div id="error" class="card" style="display:none; text-align:center; border:1px solid #fecaca; background:#fef2f2">
+<div style="font-size:36px">😕</div>
+<div style="font-weight:800; margin-top:8px">Nota tidak ditemukan</div>
+<div class="small" id="errorMsg" style="margin-top:6px"></div>
+<button class="btn btn-hijau" style="margin-top:12px" onclick="location.href='./index.html'">Buka LaundryLand</button>
+</div>
+
+<script>
+const SUPABASE_URL = "https://zfyjcaklaithzykkdrne.supabase.co";
+const SUPABASE_KEY = "sb_publishable_xnLqevbuQVG_U6XDATKSHw_nBBZs161";
+const DB_KEY='laundryland_db_v2';
+function getParam(n){return new URL(location.href).searchParams.get(n);}
+function formatRp(n){try{return 'Rp '+Number(n||0).toLocaleString('id-ID')}catch(e){return 'Rp '+(n||0)}}
+function formatTgl(ts){try{const d=new Date(Number(ts)||Date.now()); return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}catch(e){return '-'}}
+
+async function loadLocal(){try{const raw=localStorage.getItem(DB_KEY); return raw?JSON.parse(raw):null}catch(e){return null}}
+async function loadSupa(){
+  try{
+    const h={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
+    const res=await fetch(SUPABASE_URL+'/rest/v1/laundry_backups?select=data&order=updated_at.desc&limit=10',{headers:h});
+    const rows=await res.json();
+    for(const r of rows){if(r.data&&r.data.notas) return r.data;}
+    return rows[0]?.data||null;
+  }catch(e){return null}
+}
+
+function render(nota){
+  window.currentNota=nota;
+  const pel=nota.pelanggan||{};
+  const status=(nota.status||'baru').toLowerCase();
+  
+  // 4 Tahap mapping
+  // Tahap 1: Baru / Diterima
+  // Tahap 2: Cuci
+  // Tahap 3: Setrika & Packing
+  // Tahap 4: Siap Ambil / Selesai
+  let tahap=1;
+  if(['cuci','antrian','proses'].some(k=>status.includes(k))) tahap=2;
+  if(['setrika','packing'].some(k=>status.includes(k))) tahap=3;
+  if(['siap','ready','selesai','lunas','diambil'].some(k=>status.includes(k))) tahap=4;
+
+  const badgeMap={1:'badge-1',2:'badge-2',3:'badge-3',4:'badge-4'};
+  const labelMap={1:'DITERIMA',2:'DICUCI',3:'SETRIKA',4:'SIAP AMBIL'};
+
+  document.getElementById('notaCard').innerHTML=`
+    <div style="display:flex; justify-content:space-between; align-items:center">
+      <div><b style="font-size:16px">📄 ${nota.no_nota||'-'}</b><div class="small">ID: ${nota.id||'-'}</div></div>
+      <span class="badge ${badgeMap[tahap]}">${labelMap[tahap]}</span>
+    </div>
+    <div class="nota-grid">
+      <div><div class="small">Pelanggan</div><b>${pel.nama||nota.nama_pelanggan||'-'}</b></div>
+      <div><div class="small">Tanggal</div><b>${formatTgl(nota.tanggal)}</b></div>
+      <div><div class="small">Total</div><b>${formatRp(nota.total||0)}</b></div>
+      <div><div class="small">Outlet</div><b>${(nota.outlet_id||'').slice(0,12)}</b></div>
+    </div>
+  `;
+
+  document.getElementById('progressText').textContent=tahap+'/4';
+  document.getElementById('progressFill').style.width=(tahap/4*100)+'%';
+
+  const steps=[
+    {t:1, icon:'📥', title:'Diterima', desc:'Cucian diterima & nota dibuat'},
+    {t:2, icon:'🌀', title:'Proses Cuci', desc:'Sedang dicuci bersih'},
+    {t:3, icon:'👕', title:'Setrika & Packing', desc:'Disetrika & dikemas rapi'},
+    {t:4, icon:'✅', title:'Siap Ambil', desc:'Siap diambil di outlet'}
+  ];
+
+  let html='';
+  steps.forEach(s=>{
+    let state='todo';
+    if(s.t < tahap) state='done';
+    if(s.t === tahap) state='active';
+    html+=`<div class="step"><div class="dot ${state==='done'?'done':''} ${state==='active'?'active':''}">${state==='done'?'✓':s.icon}</div><div class="step-content"><div class="step-title">${s.title}</div><div class="step-desc">${s.desc}${state==='active'?' • <b style="color:#d97706">Sedang di tahap ini</b>':''}${state==='done'?' • <b style="color:#0fb9a0">Selesai</b>':''}</div></div></div>`;
+  });
+  document.getElementById('timeline').innerHTML=html;
+}
+
+async function init(){
+  const id=getParam('id')||getParam('no_nota')||getParam('nota');
+  document.getElementById('idDisplay').textContent=id||'-';
+  if(!id){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('error').style.display='block';
+    document.getElementById('errorMsg').textContent='ID tidak ada. Contoh: track.html?id=NOTA_ID';
+    return;
+  }
+  let db=await loadLocal();
+  let nota=db?.notas?.find(n=>String(n.id).toLowerCase()===String(id).toLowerCase() || String(n.no_nota).toLowerCase()===String(id).toLowerCase());
+  if(nota){document.getElementById('loading').style.display='none'; document.getElementById('content').style.display='block'; render(nota); return;}
+  document.getElementById('idDisplay').textContent=id+' (cari online...)';
+  db=await loadSupa();
+  nota=db?.notas?.find(n=>String(n.id).toLowerCase()===String(id).toLowerCase() || String(n.no_nota).toLowerCase()===String(id).toLowerCase());
+  if(nota){document.getElementById('loading').style.display='none'; document.getElementById('content').style.display='block'; render(nota); return;}
+  document.getElementById('loading').style.display='none';
+  document.getElementById('error').style.display='block';
+  document.getElementById('errorMsg').textContent='Nota '+id+' tidak ditemukan di HP ini & Supabase.';
+}
+function shareWA(){
+  const n=window.currentNota;
+  if(!n) return;
+  const txt=`Halo, cek laundry saya ${n.no_nota} statusnya apa ya? Link: ${location.href}`;
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+}
+init();
+</script>
+</body>
+</html>

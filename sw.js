@@ -1,2 +1,1 @@
-// V21.4 FIX Opsi A warna toast - login aman braces 0
-self.addEventListener("install", e=>self.skipWaiting());self.addEventListener("activate", e=>self.clients.claim());
+const CACHE='hybrid-v21-badge-fixed';const FILES=['./','./index.html','./manifest.json','./offline.html','./info.html','./track.html','./patch_badge_fixed.js'];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(FILES.map(u=>c.add(u).catch(()=>{})))));self.skipWaiting();});
